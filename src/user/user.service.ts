@@ -1,44 +1,116 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
+import * as bcrypt from 'bcrypt';
+import { LoginDto } from 'src/auth/dto/auth.dto';
+import { TokenService } from 'src/utils/token.service';
 
 @Injectable()
 export class UserService {
+  create: any;
   constructor(
     @InjectRepository(User) private readonly userRepository: Repository<User>,
+    private readonly tokenService: TokenService,
   ) {}
 
-  create(createUserDto: CreateUserDto): Promise<User> {
-    const user = new User();
-    user.name = createUserDto.name;
-    user.email = createUserDto.email;
+  async register(createUserDto: CreateUserDto): Promise<User> {
+    const isEmailExist = await this.userRepository.findOne({
+      where: [{ email: createUserDto.email }, { phone: createUserDto.phone }],
+    });
+
+    if (isEmailExist?.email) {
+      throw new BadRequestException('Email already exists');
+    } else if (isEmailExist?.phone) {
+      throw new BadRequestException('Phone Number already exists');
+    }
+
+    const passwordHash = await bcrypt.hash(createUserDto.password, 12);
+
+    const user = this.userRepository.create({
+      full_name: createUserDto.full_name,
+      email: createUserDto.email,
+      password_hash: passwordHash,
+      phone: createUserDto.phone,
+      role: createUserDto.role,
+    });
 
     return this.userRepository.save(user);
+  }
+
+  async login(loginDto: LoginDto) {
+    const user = await this.userRepository.findOne({
+      where: { email: loginDto.email },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid Email');
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      loginDto.password,
+      user.password_hash,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid Password');
+    }
+
+    const token = await this.tokenService.generateToken({
+      id: user.id,
+      email: user.email,
+      full_name: user.full_name,
+      role: user.role,
+    });
+
+    const userData = {
+      message: 'Login Successfull',
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      },
+      accessToken: token.accessToken,
+      refreshToken: token.refreshToken,
+      sessionId: token.sessionId,
+    };
+
+    return userData;
   }
 
   findAll(): Promise<User[]> {
     return this.userRepository.find();
   }
 
-  findOne(id: number): Promise<User | null> {
+  findOne(id: string): Promise<User | null> {
     return this.userRepository.findOneBy({ id });
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto): Promise<User | null> {
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
     const user = new User();
-    if (updateUserDto?.email) user.email = updateUserDto.email;
-    if (updateUserDto?.name) user.name = updateUserDto.name;
+
+    if (updateUserDto.full_name) user.full_name = updateUserDto.full_name;
+    if (updateUserDto.email) user.email = updateUserDto.email;
+    if (updateUserDto.phone) user.phone = updateUserDto.phone;
+    if (updateUserDto.role) user.role = updateUserDto.role;
+    if (updateUserDto.password) {
+      user.password_hash = await bcrypt.hash(updateUserDto.password, 12);
+    }
 
     await this.userRepository.update(id, user);
 
     return this.userRepository.findOneBy({ id });
   }
 
-  remove(id: number) {
+  remove(id: string) {
     return this.userRepository.delete({ id });
   }
 }
