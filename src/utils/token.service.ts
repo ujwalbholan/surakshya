@@ -1,0 +1,100 @@
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
+import { randomUUID } from 'crypto';
+import { RedisService } from 'src/redis/redis.service';
+import { TokenPayloadType, UsreTokenType } from 'src/types/TokenRelTypes';
+
+@Injectable()
+export class TokenService {
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly redisService: RedisService,
+  ) {}
+
+  private refreshKey(userId: string, sessionId: string) {
+    return `auth:refresh:${userId}:${sessionId}`;
+  }
+
+  async generateToken(user: UsreTokenType) {
+    const sessionId = randomUUID();
+    const accessTokenExpiresIn = (process.env.JWT_ACCESS_EXPIRES_IN ??
+      '15m') as JwtSignOptions['expiresIn'];
+    const refreshTokenExpiresIn = (process.env.JWT_REFRESH_EXPIRES_IN ??
+      '7d') as JwtSignOptions['expiresIn'];
+
+    const accessToken = await this.jwtService.signAsync(
+      {
+        sub: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        sessionId,
+        role: user.role,
+        type: 'access',
+      },
+      {
+        secret: process.env.JWT_ACCESS_SECRET as string,
+        expiresIn: accessTokenExpiresIn,
+      },
+    );
+
+    const refreshToken = await this.jwtService.signAsync(
+      {
+        sub: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        sessionId,
+        role: user.role,
+        type: 'refresh',
+      },
+      {
+        secret: process.env.JWT_REFRESH_SECRET as string,
+        expiresIn: refreshTokenExpiresIn,
+      },
+    );
+
+    await this.redisService.set(
+      this.refreshKey(user.id, sessionId),
+      refreshToken,
+      7 * 24 * 60 * 60,
+    );
+    return { accessToken, refreshToken, sessionId };
+  }
+
+  async verifyRefreshToken(refreshToken: string) {
+    try {
+      const payload = await this.jwtService.verifyAsync<TokenPayloadType>(
+        refreshToken,
+        {
+          secret: process.env.JWT_REFRESH_SECRET,
+        },
+      );
+
+      if (payload.type !== 'refresh') {
+        throw new UnauthorizedException('Token is not Valid');
+      }
+
+      const key = this.refreshKey(payload.sub, payload.sessionId);
+      const storedToken = await this.redisService.get(key);
+
+      if (!storedToken || storedToken !== refreshToken) {
+        throw new UnauthorizedException('Refresh Token expired or Recoved');
+      }
+
+      return payload;
+    } catch {
+      throw new UnauthorizedException('Invalid Refresh Token');
+    }
+  }
+
+  async revokedRefreshToken(userId: string, sessionId: string) {
+    return this.redisService.del(this.refreshKey(userId, sessionId));
+  }
+
+  async rotateRefreshToken(refreshToken: string, user: UsreTokenType) {
+    const payload = await this.verifyRefreshToken(refreshToken);
+
+    await this.revokedRefreshToken(payload.sub, payload.sessionId);
+
+    return this.generateToken(user);
+  }
+}
