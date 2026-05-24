@@ -7,7 +7,7 @@ export type TokenPayloadType = {
   type: 'access' | 'refresh';
 };
 
-export type UsreTokenType = {
+export type UserTokenType = {
   id: string;
   email: string;
   full_name: string;

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, ExtractJwt } from 'passport-jwt';
 import { TokenPayloadType } from 'src/types/TokenRelTypes';

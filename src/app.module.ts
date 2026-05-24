@@ -3,11 +3,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { UserModule } from './user/user.module';
-import { AuthModule } from './auth/auth.module';
+import { UserModule } from './feature/user/user.module';
+import { AuthModule } from './feature/auth/auth.module';
 import { PassportModule } from '@nestjs/passport';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { RolesGuard } from './guard/roles.guard';
+import { JwtStrategy } from './utils/strategies/jwt.strategy';
+import { RolesGuard } from './utils/guard/roles.guard';
+import { NotificationModule } from './feature/notification/notification.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { RolesGuard } from './guard/roles.guard';
     UserModule,
     AuthModule,
     PassportModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService, JwtStrategy, RolesGuard],
