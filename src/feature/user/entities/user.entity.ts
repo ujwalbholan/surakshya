@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Role } from 'src/auth/dto/auth.dto';
+import { Role } from 'src/feature/auth/dto/auth.dto';
 
 @Entity('users')
 @Index('idx_users_phone', ['phone'])

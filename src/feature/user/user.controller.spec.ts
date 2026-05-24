@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
+import { Request } from 'express';
 import { DeleteResult } from 'typeorm';
-import { Role } from 'src/auth/dto/auth.dto';
-import { CreateUserDto } from './dto/create-user.dto';
+import { Role } from 'src/feature/auth/dto/auth.dto';
 import { User } from './entities/user.entity';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
@@ -19,9 +19,10 @@ describe('UserController', () => {
     update: jest.fn(),
     remove: jest.fn(),
   };
+  const userId = '0fbd7095-f451-48f7-a860-ccd0d88057a1';
 
   const makeUser = (overrides: Partial<User> = {}): User => ({
-    id: 'user-id',
+    id: userId,
     full_name: 'Ujwal',
     email: 'ujwal@gmail.com',
     phone: '9800000000',
@@ -54,24 +55,6 @@ describe('UserController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('should create user', async () => {
-    const dto: CreateUserDto = {
-      full_name: 'Ujwal',
-      email: 'ujwal@gmail.com',
-      phone: '9800000000',
-      password: 'password',
-      role: Role.USER,
-    };
-    const resultData = makeUser();
-
-    service.create.mockResolvedValue(resultData);
-
-    const result = await controller.create(dto);
-
-    expect(service.create).toHaveBeenCalledWith(dto);
-    expect(result).toEqual(resultData);
-  });
-
   it('should return all users', async () => {
     const users = [
       makeUser(),
@@ -91,10 +74,26 @@ describe('UserController', () => {
 
     service.findOne.mockResolvedValue(user);
 
-    const result = await controller.findOne('user-id');
+    const result = await controller.findOne(userId);
 
-    expect(service.findOne).toHaveBeenCalledWith('user-id');
+    expect(service.findOne).toHaveBeenCalledWith(userId);
     expect(result).toEqual(user);
+  });
+
+  it('should return authenticated user from request', () => {
+    const authUser = {
+      userId,
+      role: Role.USER,
+      sessionId: 'session-id',
+    };
+    const req = { user: authUser } as unknown as Request;
+
+    const result = controller.me(req);
+
+    expect(result).toEqual({
+      message: 'Authenticated user',
+      user: authUser,
+    });
   });
 
   it('should update user by id', async () => {
@@ -106,9 +105,9 @@ describe('UserController', () => {
 
     service.update.mockResolvedValue(updatedUser);
 
-    const result = await controller.update('user-id', dto);
+    const result = await controller.update(userId, dto);
 
-    expect(service.update).toHaveBeenCalledWith('user-id', dto);
+    expect(service.update).toHaveBeenCalledWith(userId, dto);
     expect(result).toEqual(updatedUser);
   });
 
@@ -119,9 +118,9 @@ describe('UserController', () => {
 
     service.remove.mockResolvedValue(deleteResult);
 
-    const result = await controller.remove('user-id');
+    const result = await controller.remove(userId);
 
-    expect(service.remove).toHaveBeenCalledWith('user-id');
+    expect(service.remove).toHaveBeenCalledWith(userId);
     expect(result).toEqual(deleteResult);
   });
 });

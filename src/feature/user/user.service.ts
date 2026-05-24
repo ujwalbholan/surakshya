@@ -9,8 +9,8 @@ import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { LoginDto } from 'src/auth/dto/auth.dto';
-import { TokenService } from 'src/utils/token.service';
+import { LoginDto } from 'src/feature/auth/dto/auth.dto';
+import { TokenService } from 'src/utils/token/token.service';
 
 @Injectable()
 export class UserService {
@@ -90,8 +90,16 @@ export class UserService {
     return this.userRepository.find();
   }
 
-  findOne(id: string): Promise<User | null> {
+  findOne(id: string) {
     return this.userRepository.findOneBy({ id });
+  }
+
+  async findOneByEmail(email: string): Promise<User | null> {
+    return await this.userRepository.findOne({
+      where: {
+        email: email,
+      },
+    });
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
@@ -108,6 +116,14 @@ export class UserService {
     await this.userRepository.update(id, user);
 
     return this.userRepository.findOneBy({ id });
+  }
+
+  async updatePassword(email: string, password: string) {
+    const passwordHash = await bcrypt.hash(password, 12);
+    await this.userRepository.update(
+      { email },
+      { password_hash: passwordHash },
+    );
   }
 
   remove(id: string) {

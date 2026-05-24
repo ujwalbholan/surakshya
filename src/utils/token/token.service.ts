@@ -1,8 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { randomUUID } from 'crypto';
-import { RedisService } from 'src/redis/redis.service';
-import { TokenPayloadType, UsreTokenType } from 'src/types/TokenRelTypes';
+import { RedisService } from 'src/config/redis/redis.service';
+import { TokenPayloadType, UserTokenType } from 'src/types/TokenRelTypes';
 
 @Injectable()
 export class TokenService {
@@ -15,7 +15,7 @@ export class TokenService {
     return `auth:refresh:${userId}:${sessionId}`;
   }
 
-  async generateToken(user: UsreTokenType) {
+  async generateToken(user: UserTokenType) {
     const sessionId = randomUUID();
     const accessTokenExpiresIn = (process.env.JWT_ACCESS_EXPIRES_IN ??
       '15m') as JwtSignOptions['expiresIn'];
@@ -90,7 +90,7 @@ export class TokenService {
     return this.redisService.del(this.refreshKey(userId, sessionId));
   }
 
-  async rotateRefreshToken(refreshToken: string, user: UsreTokenType) {
+  async rotateRefreshToken(refreshToken: string, user: UserTokenType) {
     const payload = await this.verifyRefreshToken(refreshToken);
 
     await this.revokedRefreshToken(payload.sub, payload.sessionId);

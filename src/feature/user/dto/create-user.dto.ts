@@ -1,4 +1,4 @@
-import { Role } from 'src/auth/dto/auth.dto';
+import { Role } from 'src/feature/auth/dto/auth.dto';
 
 export class CreateUserDto {
   full_name!: string;

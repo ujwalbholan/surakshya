@@ -4,6 +4,7 @@ import {
   IsEnum,
   MinLength,
   MaxLength,
+  IsNotEmpty,
 } from 'class-validator';
 
 export enum Role {
@@ -47,4 +48,35 @@ export class TokenDto {
 
   @IsString()
   accessToken!: string;
+}
+
+export class ForgotPasswordDto {
+  @IsEmail()
+  email!: string;
+}
+
+export class VerifyResetOtpDto {
+  @IsEmail()
+  email!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  otp!: string;
+}
+
+export class ResetPasswordDto {
+  @IsEmail()
+  email!: string;
+
+  @IsString()
+  @MinLength(5)
+  newPassword!: string;
+
+  @IsString()
+  @MinLength(5)
+  comparePassword!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  resetToken!: string;
 }
