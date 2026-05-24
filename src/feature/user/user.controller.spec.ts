@@ -3,7 +3,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Request } from 'express';
 import { DeleteResult } from 'typeorm';
-import { Role } from 'src/auth/dto/auth.dto';
+import { Role } from 'src/feature/auth/dto/auth.dto';
 import { User } from './entities/user.entity';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';

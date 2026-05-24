@@ -13,9 +13,9 @@ import {
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/utils/guard/jwt-auth.guard';
 import type { Request } from 'express';
-import { RolesGuard } from 'src/guard/roles.guard';
+import { RolesGuard } from 'src/utils/guard/roles.guard';
 import { Roles } from 'src/decorators/roles.decorators';
 
 @Controller('user')
