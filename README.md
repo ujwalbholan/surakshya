@@ -35,6 +35,12 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=
 
+# Hosted services (optional; preferred when set)
+DATABASE_URL=
+REDIS_URL=
+DB_SSL=false
+DB_LOGGING=false
+
 # JWT
 JWT_ACCESS_SECRET=your_access_token_secret
 JWT_REFRESH_SECRET=your_refresh_token_secret
@@ -199,3 +205,35 @@ PostgreSQL -> localhost:5433
 Redis      -> localhost:6379
 Backend    -> localhost:3000
 ```
+
+## Deploy On Render
+
+Create three Render resources in the same region:
+
+1. A PostgreSQL database.
+2. A Key Value instance.
+3. A Docker web service connected to this repository.
+
+In the web service environment settings, add:
+
+```env
+DATABASE_URL=<Render PostgreSQL internal URL>
+REDIS_URL=<Render Key Value internal URL>
+DB_SYNC=true
+DB_SSL=false
+JWT_ACCESS_SECRET=<strong secret>
+JWT_REFRESH_SECRET=<strong secret>
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+```
+
+Also add the required `MAIL_*` variables. Render provides `PORT`
+automatically, and the application listens on that value.
+
+Use the internal database and Key Value URLs when all three resources are in
+the same Render region. If an external PostgreSQL URL is required, set
+`DB_SSL=true`.
+
+This project does not have database migrations yet, so `DB_SYNC=true` is
+needed for a new database. Add migrations and change it to `false` before
+using the service for important production data.

@@ -17,20 +17,29 @@ import { NotificationModule } from './feature/notification/notification.module';
         ConfigModule.forRoot({
           isGlobal: true,
           envFilePath: '.local.env',
-          // envFilePath: '.env',
         }),
       ],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('DB_HOST'),
-        port: +configService.get('DB_PORT'),
-        username: configService.get('DB_USERNAME'),
-        password: configService.get('DB_PASSWORD'),
-        database: configService.get('DB_NAME'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: configService.get<boolean>('DB_SYNC'),
-        logging: true,
-      }),
+      useFactory: (configService: ConfigService) => {
+        const databaseUrl = configService.get<string>('DATABASE_URL');
+        const sslEnabled = configService.get<string>('DB_SSL') === 'true';
+
+        return {
+          type: 'postgres',
+          ...(databaseUrl
+            ? { url: databaseUrl }
+            : {
+                host: configService.get<string>('DB_HOST'),
+                port: Number(configService.get<string>('DB_PORT')),
+                username: configService.get<string>('DB_USERNAME'),
+                password: configService.get<string>('DB_PASSWORD'),
+                database: configService.get<string>('DB_NAME'),
+              }),
+          ssl: sslEnabled ? { rejectUnauthorized: false } : false,
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          synchronize: configService.get<string>('DB_SYNC') === 'true',
+          logging: configService.get<string>('DB_LOGGING') === 'true',
+        };
+      },
       inject: [ConfigService],
     }),
     UserModule,

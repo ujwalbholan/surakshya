@@ -9,6 +9,7 @@ jest.mock('ioredis', () => {
     get: jest.fn(),
     del: jest.fn(),
     quit: jest.fn(),
+    on: jest.fn(),
   }));
 });
 
@@ -19,6 +20,7 @@ describe('RedisService', () => {
     get: jest.Mock;
     del: jest.Mock;
     quit: jest.Mock;
+    on: jest.Mock;
   };
 
   beforeEach(() => {
@@ -26,6 +28,8 @@ describe('RedisService', () => {
 
     process.env.REDIS_HOST = 'localhost';
     process.env.REDIS_PORT = '6379';
+    delete process.env.REDIS_URL;
+    delete process.env.REDIS_PASSWORD;
 
     service = new RedisService();
 
@@ -36,13 +40,24 @@ describe('RedisService', () => {
   afterEach(() => {
     delete process.env.REDIS_HOST;
     delete process.env.REDIS_PORT;
+    delete process.env.REDIS_URL;
+    delete process.env.REDIS_PASSWORD;
   });
 
   it('should create Redis client with env host and port', () => {
     expect(Redis).toHaveBeenCalledWith({
       host: 'localhost',
       port: 6379,
+      password: undefined,
     });
+  });
+
+  it('should prefer REDIS_URL when provided', () => {
+    process.env.REDIS_URL = 'redis://render-redis:6379';
+
+    new RedisService();
+
+    expect(Redis).toHaveBeenLastCalledWith('redis://render-redis:6379');
   });
 
   it('should use default host and port if env is not provided', () => {
@@ -54,6 +69,7 @@ describe('RedisService', () => {
     expect(Redis).toHaveBeenLastCalledWith({
       host: '127.0.0.1',
       port: 6379,
+      password: undefined,
     });
   });
 
