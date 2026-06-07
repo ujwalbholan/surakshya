@@ -10,15 +10,17 @@ import { JwtStrategy } from './utils/strategies/jwt.strategy';
 import { RolesGuard } from './utils/guard/roles.guard';
 import { NotificationModule } from './feature/notification/notification.module';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      ignoreEnvFile: isProduction,
+      envFilePath: ['.local.env', '.env'],
+    }),
     TypeOrmModule.forRootAsync({
-      imports: [
-        ConfigModule.forRoot({
-          isGlobal: true,
-          envFilePath: '.local.env',
-        }),
-      ],
+      imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
         const databaseUrl = configService.get<string>('DATABASE_URL');
         const sslEnabled = configService.get<string>('DB_SSL') === 'true';

@@ -19,7 +19,7 @@ For local development:
 
 ## Environment Setup
 
-Create a `.env` file in the project root:
+Create a `.local.env` file in the project root for local development:
 
 ```env
 # PostgreSQL
@@ -57,7 +57,15 @@ MAIL_FROM=noreply@example.com
 ```
 
 Use strong, private values for the JWT secrets and passwords. Do not commit
-the `.env` file.
+environment files.
+
+Environment loading works as follows:
+
+- Local development loads `.local.env`, then falls back to `.env`.
+- Production ignores local files and uses variables injected by the hosting
+  platform.
+- Docker Compose injects `.local.env` and changes the database and Redis
+  hosts to their Compose service names.
 
 ## Run With Docker Compose
 
@@ -119,7 +127,7 @@ available. Start the container with the environment file:
 
 ```bash
 docker run --name surakshya-backend \
-  --env-file .env \
+  --env-file .local.env \
   -p 3000:3000 \
   surakshya-backend
 ```
@@ -127,6 +135,9 @@ docker run --name surakshya-backend \
 When the database and Redis are other Docker containers, place all containers
 on the same Docker network and use their container or service names for
 `DB_HOST` and `REDIS_HOST`.
+
+Do not use `localhost` for PostgreSQL or Redis from inside the backend
+container. Inside a container, `localhost` refers to that same container.
 
 Stop and remove the manually started container:
 

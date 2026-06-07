@@ -1,7 +1,30 @@
+name: surakshya
+
 services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: surakshya-backend
+    restart: unless-stopped
+    env_file:
+      - .local.env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   postgres:
     image: postgis/postgis:16-3.4
-    container_name: surakshya_postgres
 
     restart: always
 
@@ -15,10 +38,14 @@ services:
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: surakshya_redis
 
     restart: always
     
@@ -27,6 +54,11 @@ services:
     
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   postgres_data:
