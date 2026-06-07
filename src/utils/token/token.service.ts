@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { RedisService } from 'src/config/redis/redis.service';
 import { TokenPayloadType, UserTokenType } from 'src/types/TokenRelTypes';
 

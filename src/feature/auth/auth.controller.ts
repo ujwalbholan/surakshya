@@ -83,7 +83,9 @@ export class AuthController {
   }
 
   @Post('refresh')
-  refresh() {}
+  refresh() {
+    console.log('ok');
+  }
 
   @UseGuards(JwtAuthGuard)
   @Post('logout')
