@@ -1,98 +1,201 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Surakshya Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS backend for Surakshya. The application uses PostgreSQL, Redis, JWT
+authentication, and email notifications.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Requirements
 
-## Description
+For the Docker setup:
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- Docker Desktop
+- Docker Compose
 
-## Project setup
+For local development:
 
-```bash
-$ pnpm install
+- Node.js 20 or newer
+- pnpm 10
+- PostgreSQL
+- Redis
+
+## Environment Setup
+
+Create a `.env` file in the project root:
+
+```env
+# PostgreSQL
+DB_HOST=localhost
+DB_PORT=5433
+DB_USERNAME=postgres
+DB_PASSWORD=your_database_password
+DB_NAME=surakshya
+DB_SYNC=true
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+
+# JWT
+JWT_ACCESS_SECRET=your_access_token_secret
+JWT_REFRESH_SECRET=your_refresh_token_secret
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Email
+MAIL_HOST=smtp.example.com
+MAIL_PORT=587
+MAIL_SECURE=false
+MAIL_USER=your_email_username
+MAIL_PASSWORD=your_email_password
+MAIL_FROM=noreply@example.com
 ```
 
-## Compile and run the project
+Use strong, private values for the JWT secrets and passwords. Do not commit
+the `.env` file.
+
+## Run With Docker Compose
+
+Docker Compose builds the backend and starts the complete stack:
+
+- Backend: `http://localhost:3000`
+- PostgreSQL: `localhost:5433`
+- Redis: `localhost:6379`
+
+Build and start all services:
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+docker compose up --build
 ```
 
-## Run tests
+Run them in the background:
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+docker compose up -d --build
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Check service status:
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+docker compose ps
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Follow backend logs:
 
-## Resources
+```bash
+docker compose logs -f backend
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+Stop the services:
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```bash
+docker compose down
+```
 
-## Support
+Stop the services and delete PostgreSQL and Redis data:
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+docker compose down -v
+```
 
-## Stay in touch
+The Compose project is named `surakshya`, so Docker Desktop groups the
+backend, PostgreSQL, and Redis containers together.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Build And Run The Docker Image Manually
 
-## License
+Build the multi-stage production image:
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```bash
+docker build -t surakshya-backend .
+```
+
+When running the image outside Compose, PostgreSQL and Redis must already be
+available. Start the container with the environment file:
+
+```bash
+docker run --name surakshya-backend \
+  --env-file .env \
+  -p 3000:3000 \
+  surakshya-backend
+```
+
+When the database and Redis are other Docker containers, place all containers
+on the same Docker network and use their container or service names for
+`DB_HOST` and `REDIS_HOST`.
+
+Stop and remove the manually started container:
+
+```bash
+docker rm -f surakshya-backend
+```
+
+## Run Locally
+
+Install dependencies:
+
+```bash
+pnpm install
+```
+
+Start PostgreSQL and Redis with Docker:
+
+```bash
+docker compose up -d postgres redis
+```
+
+Start the NestJS development server with file watching:
+
+```bash
+pnpm run start:dev
+```
+
+The API is available at `http://localhost:3000`.
+
+## Production Build
+
+Compile the application:
+
+```bash
+pnpm run build
+```
+
+Run the compiled application:
+
+```bash
+pnpm run start:prod
+```
+
+## Tests And Code Quality
+
+```bash
+# Unit tests
+pnpm test
+
+# End-to-end tests
+pnpm run test:e2e
+
+# Test coverage
+pnpm run test:cov
+
+# Lint and automatically fix supported issues
+pnpm run lint
+
+# Format source and test files
+pnpm run format
+```
+
+## Docker Networking
+
+Inside Docker Compose, services communicate using service names:
+
+```text
+Backend -> postgres:5432
+Backend -> redis:6379
+```
+
+From the host machine, use the published ports:
+
+```text
+PostgreSQL -> localhost:5433
+Redis      -> localhost:6379
+Backend    -> localhost:3000
+```
