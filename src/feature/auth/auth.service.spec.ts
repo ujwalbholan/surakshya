@@ -1,16 +1,20 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { RedisService } from 'src/config/redis/redis.service';
-import { EmailService } from 'src/feature/notification/email.service';
+import { OtpEmailService } from 'src/feature/notification/email/otp.email';
+import { WelcomeEmailService } from 'src/feature/notification/email/welcome.email';
 import { UserService } from 'src/feature/user/user.service';
 import { TokenService } from 'src/utils/token/token.service';
 import { AuthService } from './auth.service';
+import { Role } from './dto/auth.dto';
 
 describe('AuthService', () => {
   let service: AuthService;
   let tokenService: jest.Mocked<TokenService>;
   let userService: jest.Mocked<UserService>;
   let redisService: jest.Mocked<RedisService>;
+  let otpEmailService: jest.Mocked<OtpEmailService>;
+  let welcomeEmailService: jest.Mocked<WelcomeEmailService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -20,6 +24,7 @@ describe('AuthService', () => {
           provide: TokenService,
           useValue: {
             revokedRefreshToken: jest.fn(),
+            rotateRefreshToken: jest.fn(),
           },
         },
         {
@@ -39,9 +44,15 @@ describe('AuthService', () => {
           },
         },
         {
-          provide: EmailService,
+          provide: OtpEmailService,
           useValue: {
-            sendOtpEmail: jest.fn(),
+            sendPasswordResetOtp: jest.fn(),
+          },
+        },
+        {
+          provide: WelcomeEmailService,
+          useValue: {
+            sendWelcomeEmail: jest.fn(),
           },
         },
       ],
@@ -51,6 +62,8 @@ describe('AuthService', () => {
     tokenService = module.get(TokenService);
     userService = module.get(UserService);
     redisService = module.get(RedisService);
+    otpEmailService = module.get(OtpEmailService);
+    welcomeEmailService = module.get(WelcomeEmailService);
 
     jest.clearAllMocks();
   });
@@ -59,17 +72,78 @@ describe('AuthService', () => {
     expect(service).toBeDefined();
   });
 
+  it('should send a welcome email after registration', async () => {
+    const dto = {
+      full_name: 'Ujwal Bholan',
+      email: 'ujwal@example.com',
+      phone: '9800000000',
+      password: 'password123',
+      role: Role.USER,
+    };
+
+    userService.register.mockResolvedValue({
+      id: 'user-id',
+      full_name: dto.full_name,
+      email: dto.email,
+      phone: dto.phone,
+      role: dto.role,
+    } as never);
+    welcomeEmailService.sendWelcomeEmail.mockResolvedValue(undefined);
+
+    const result = await service.register(dto);
+
+    expect(welcomeEmailService.sendWelcomeEmail).toHaveBeenCalledWith(
+      dto.email,
+      dto.full_name,
+    );
+    expect(result.message).toBe('User Registered successfully');
+  });
+
+  it('should send a password reset OTP email', async () => {
+    userService.findOneByEmail.mockResolvedValue({
+      email: 'ujwal@example.com',
+    } as never);
+    redisService.set.mockResolvedValue('OK');
+    otpEmailService.sendPasswordResetOtp.mockResolvedValue(undefined);
+
+    const result = await service.forgetPassword('ujwal@example.com');
+
+    expect(otpEmailService.sendPasswordResetOtp).toHaveBeenCalledWith(
+      'ujwal@example.com',
+      expect.stringMatching(/^\d{6}$/),
+    );
+    expect(result).toEqual({ message: 'Otp sent successfully' });
+  });
+
   it('should revoke the current refresh token on logout', async () => {
     tokenService.revokedRefreshToken.mockResolvedValue(1);
 
-    const result = await service.logout('user-id', 'session-id');
+    await expect(
+      service.logout('user-id', 'session-id'),
+    ).resolves.toBeUndefined();
 
     expect(tokenService.revokedRefreshToken).toHaveBeenCalledWith(
       'user-id',
       'session-id',
     );
+  });
+
+  it('should rotate the refresh token', async () => {
+    tokenService.rotateRefreshToken.mockResolvedValue({
+      accessToken: 'new-access-token',
+      refreshToken: 'new-refresh-token',
+      sessionId: 'new-session-id',
+    });
+
+    const result = await service.refresh('old-refresh-token');
+
+    expect(tokenService.rotateRefreshToken).toHaveBeenCalledWith(
+      'old-refresh-token',
+    );
     expect(result).toEqual({
-      message: 'Logout successful',
+      accessToken: 'new-access-token',
+      refreshToken: 'new-refresh-token',
+      sessionId: 'new-session-id',
     });
   });
 
@@ -93,9 +167,7 @@ describe('AuthService', () => {
       dto.email,
       dto.newPassword,
     );
-    expect(redisService.del).toHaveBeenCalledWith(
-      'password:reset:reset-token',
-    );
+    expect(redisService.del).toHaveBeenCalledWith('password:reset:reset-token');
     expect(result).toEqual({
       message: 'Password reset successfully',
     });

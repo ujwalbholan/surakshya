@@ -1,8 +1,16 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
+export interface EmailMessage {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+}
+
 @Injectable()
 export class EmailService {
+  private readonly from: string;
   private readonly transporter: nodemailer.Transporter;
 
   constructor() {
@@ -16,11 +24,11 @@ export class EmailService {
       throw new InternalServerErrorException('Mail env is not configured');
     }
 
+    this.from = process.env.MAIL_FROM;
     this.transporter = nodemailer.createTransport({
       host: process.env.MAIL_HOST,
       port: Number(process.env.MAIL_PORT),
       secure: process.env.MAIL_SECURE === 'true',
-
       auth: {
         user: process.env.MAIL_USER,
         pass: process.env.MAIL_PASSWORD,
@@ -28,27 +36,10 @@ export class EmailService {
     });
   }
 
-  async sendOtpEmail(email: string, otp: string) {
+  async send(message: EmailMessage): Promise<void> {
     await this.transporter.sendMail({
-      from: process.env.MAIL_FROM,
-      to: email,
-      subject: 'Password Reset OTP',
-
-      html: `
-        <div style="font-family: Arial, sans-serif;">
-          <h2>Password Reset Request</h2>
-
-          <p>Your OTP code is:</p>
-
-          <h1 style="letter-spacing: 5px;">
-            ${otp}
-          </h1>
-
-          <p>This OTP will expire in 2 minutes.</p>
-
-          <p>If you did not request this, ignore this email.</p>
-        </div>
-      `,
+      ...message,
+      from: this.from,
     });
   }
 }

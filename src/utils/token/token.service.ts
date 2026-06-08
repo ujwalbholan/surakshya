@@ -90,11 +90,16 @@ export class TokenService {
     return this.redisService.del(this.refreshKey(userId, sessionId));
   }
 
-  async rotateRefreshToken(refreshToken: string, user: UserTokenType) {
+  async rotateRefreshToken(refreshToken: string) {
     const payload = await this.verifyRefreshToken(refreshToken);
 
     await this.revokedRefreshToken(payload.sub, payload.sessionId);
 
-    return this.generateToken(user);
+    return this.generateToken({
+      id: payload.sub,
+      email: payload.email,
+      full_name: payload.full_name,
+      role: payload.role,
+    });
   }
 }

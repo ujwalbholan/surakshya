@@ -181,6 +181,41 @@ Run the compiled application:
 pnpm run start:prod
 ```
 
+## Authentication Session
+
+The authentication cookies are HTTP-only:
+
+- Access token lifetime: 15 minutes
+- Refresh token lifetime: 7 days
+
+`POST /auth/refresh` verifies and revokes the current refresh token, creates a
+new access/refresh token pair, and replaces both cookies. A successful refresh
+returns `204 No Content`.
+
+The frontend can call this endpoint approximately 30 seconds before access
+token expiry:
+
+```ts
+const refreshInterval = 14.5 * 60 * 1000;
+
+const timer = window.setInterval(async () => {
+  const response = await fetch('/auth/refresh', {
+    method: 'POST',
+    credentials: 'include',
+  });
+
+  if (response.status === 401) {
+    window.clearInterval(timer);
+    // Clear client-side user state and redirect to login.
+  }
+}, refreshInterval);
+```
+
+The frontend should also retry refresh after an API request receives `401`,
+because browser timers can pause in inactive tabs. Access-token expiry alone
+does not log the user out; logout occurs when the refresh token expires, is
+revoked, or cannot be rotated.
+
 ## Tests And Code Quality
 
 ```bash

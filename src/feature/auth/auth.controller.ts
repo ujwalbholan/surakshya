@@ -1,4 +1,14 @@
-import { Controller, Post, Body, Res, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ForgotPasswordDto,
@@ -27,19 +37,7 @@ export class AuthController {
   ) {
     const result = await this.authService.login(loginDto);
 
-    res.cookie('access_token', result.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 15 * 60 * 1000,
-    });
-
-    res.cookie('refresh_token', result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    this.setAuthCookies(res, result.accessToken, result.refreshToken);
 
     return {
       message: result.message,
@@ -81,12 +79,25 @@ export class AuthController {
   }
 
   @Post('refresh')
-  refresh() {
-    console.log('ok');
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = this.getCookie(req, 'refresh_token');
+
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is missing');
+    }
+
+    const tokens = await this.authService.refresh(refreshToken);
+
+    this.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const user = req.user as {
       userId: string;
@@ -94,11 +105,38 @@ export class AuthController {
       role: string;
     };
 
-    const result = await this.authService.logout(user.userId, user.sessionId);
+    await this.authService.logout(user.userId, user.sessionId);
 
     res.clearCookie('access_token');
     res.clearCookie('refresh_token');
+  }
 
-    return result.message;
+  private getCookie(req: Request, name: string): string | undefined {
+    const cookies = req.cookies as Record<string, unknown> | undefined;
+    const value = cookies?.[name];
+
+    return typeof value === 'string' ? value : undefined;
+  }
+
+  private setAuthCookies(
+    res: Response,
+    accessToken: string,
+    refreshToken: string,
+  ): void {
+    const secure = process.env.NODE_ENV === 'production';
+
+    res.cookie('access_token', accessToken, {
+      httpOnly: true,
+      secure,
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
   }
 }

@@ -11,10 +11,11 @@ import {
 } from './dto/auth.dto';
 import { UserService } from 'src/feature/user/user.service';
 import { TokenService } from 'src/utils/token/token.service';
-import { randomInt, randomUUID } from 'crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import * as bcrypt from 'bcrypt';
 import { RedisService } from 'src/config/redis/redis.service';
-import { EmailService } from '../notification/email.service';
+import { OtpEmailService } from '../notification/email/otp.email';
+import { WelcomeEmailService } from '../notification/email/welcome.email';
 
 @Injectable()
 export class AuthService {
@@ -22,12 +23,15 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly tokenService: TokenService,
     private readonly redisService: RedisService,
-    private readonly emailService: EmailService,
+    private readonly otpEmailService: OtpEmailService,
+    private readonly welcomeEmailService: WelcomeEmailService,
   ) {}
 
   async register(registerDto: RegisterDto) {
     const { id, full_name, email, phone, role } =
       await this.userService.register(registerDto);
+
+    await this.welcomeEmailService.sendWelcomeEmail(email, full_name);
 
     return {
       message: 'User Registered successfully',
@@ -41,11 +45,12 @@ export class AuthService {
 
   async login(loginDto: LoginDto) {
     const user = await this.userService.login(loginDto);
-
     return user;
   }
 
-  refresh() {}
+  refresh(refreshToken: string) {
+    return this.tokenService.rotateRefreshToken(refreshToken);
+  }
 
   async forgetPassword(email: string) {
     const user = await this.userService.findOneByEmail(email);
@@ -60,7 +65,7 @@ export class AuthService {
 
     await this.redisService.set(`password:otp:${email}`, hashOtp, 2 * 60);
 
-    await this.emailService.sendOtpEmail(email, otp);
+    await this.otpEmailService.sendPasswordResetOtp(email, otp);
 
     return {
       message: 'Otp sent successfully',
@@ -126,11 +131,7 @@ export class AuthService {
     };
   }
 
-  async logout(userId: string, sessionId: string) {
+  async logout(userId: string, sessionId: string): Promise<void> {
     await this.tokenService.revokedRefreshToken(userId, sessionId);
-
-    return {
-      message: 'Logout successful',
-    };
   }
 }
