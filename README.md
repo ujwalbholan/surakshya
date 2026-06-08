@@ -54,6 +54,9 @@ MAIL_SECURE=false
 MAIL_USER=your_email_username
 MAIL_PASSWORD=your_email_password
 MAIL_FROM=noreply@example.com
+
+# HTTPS email provider (optional; takes priority over SMTP)
+RESEND_API_KEY=
 ```
 
 Use strong, private values for the JWT secrets and passwords. Do not commit
@@ -275,6 +278,30 @@ JWT_REFRESH_EXPIRES_IN=7d
 
 Also add the required `MAIL_*` variables. Render provides `PORT`
 automatically, and the application listens on that value.
+
+Render free web services block outbound SMTP ports `25`, `465`, and `587`.
+Gmail SMTP on port `587` therefore requires a paid Render instance. On a free
+instance, use an email provider with an HTTPS API instead of SMTP.
+
+### Resend HTTPS Email
+
+Resend uses HTTPS, so it works on Render's free tier:
+
+1. Create an account at `https://resend.com`.
+2. Add a domain you own in the Resend dashboard.
+3. Add the SPF and DKIM records shown by Resend to your DNS provider.
+4. Wait until the domain status is verified.
+5. Create a Resend API key.
+6. Add these environment variables to the Render web service:
+
+```env
+RESEND_API_KEY=re_your_api_key
+MAIL_FROM=Surakshya <noreply@your-verified-domain.com>
+```
+
+When `RESEND_API_KEY` is set, the application uses the Resend HTTPS API and
+does not use `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, or `MAIL_PASSWORD`.
+Without `RESEND_API_KEY`, it falls back to SMTP for local development.
 
 Use the internal database and Key Value URLs when all three resources are in
 the same Render region. If an external PostgreSQL URL is required, set

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
@@ -19,6 +20,8 @@ import { WelcomeEmailService } from '../notification/email/welcome.email';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly userService: UserService,
     private readonly tokenService: TokenService,
@@ -28,18 +31,28 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { id, full_name, email, phone, role } =
-      await this.userService.register(registerDto);
+    const user = await this.userService.register(registerDto);
 
-    await this.welcomeEmailService.sendWelcomeEmail(email, full_name);
+    try {
+      await this.welcomeEmailService.sendWelcomeEmail(
+        user.email,
+        user.full_name,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown email error';
+      this.logger.error(
+        `Welcome email failed for registered user ${user.id}: ${message}`,
+      );
+    }
 
     return {
       message: 'User Registered successfully',
-      user_id: id,
-      full_name: full_name,
-      email: email,
-      phone: phone,
-      role: role,
+      user_id: user.id,
+      full_name: user.full_name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
     };
   }
 

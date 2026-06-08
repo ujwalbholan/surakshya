@@ -99,6 +99,51 @@ describe('AuthService', () => {
     expect(result.message).toBe('User Registered successfully');
   });
 
+  it('should not send a welcome email when registration fails', async () => {
+    const dto = {
+      full_name: 'Ujwal Bholan',
+      email: 'ujwal@example.com',
+      phone: '9800000000',
+      password: 'password123',
+      role: Role.USER,
+    };
+
+    userService.register.mockRejectedValue(
+      new Error('Database registration failed'),
+    );
+
+    await expect(service.register(dto)).rejects.toThrow(
+      'Database registration failed',
+    );
+    expect(welcomeEmailService.sendWelcomeEmail).not.toHaveBeenCalled();
+  });
+
+  it('should keep registration successful when welcome email fails', async () => {
+    const dto = {
+      full_name: 'Ujwal Bholan',
+      email: 'ujwal@example.com',
+      phone: '9800000000',
+      password: 'password123',
+      role: Role.USER,
+    };
+
+    userService.register.mockResolvedValue({
+      id: 'user-id',
+      full_name: dto.full_name,
+      email: dto.email,
+      phone: dto.phone,
+      role: dto.role,
+    } as never);
+    welcomeEmailService.sendWelcomeEmail.mockRejectedValue(
+      new Error('SMTP unavailable'),
+    );
+
+    await expect(service.register(dto)).resolves.toMatchObject({
+      message: 'User Registered successfully',
+      user_id: 'user-id',
+    });
+  });
+
   it('should send a password reset OTP email', async () => {
     userService.findOneByEmail.mockResolvedValue({
       email: 'ujwal@example.com',
@@ -132,7 +177,7 @@ describe('AuthService', () => {
     tokenService.rotateRefreshToken.mockResolvedValue({
       accessToken: 'new-access-token',
       refreshToken: 'new-refresh-token',
-      sessionId: 'new-session-id',
+      sessionId: '550e8400-e29b-41d4-a716-446655440000',
     });
 
     const result = await service.refresh('old-refresh-token');
@@ -143,7 +188,7 @@ describe('AuthService', () => {
     expect(result).toEqual({
       accessToken: 'new-access-token',
       refreshToken: 'new-refresh-token',
-      sessionId: 'new-session-id',
+      sessionId: '550e8400-e29b-41d4-a716-446655440000',
     });
   });
 
