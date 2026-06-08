@@ -20,12 +20,21 @@ export class EmailService {
   private readonly transporter?: nodemailer.Transporter;
 
   constructor() {
-    this.from = process.env.MAIL_FROM;
     this.resendApiKey = process.env.RESEND_API_KEY;
 
-    if (this.resendApiKey && this.from) {
+    if (this.resendApiKey) {
+      this.from = process.env.RESEND_MAIL_FROM;
+
+      if (!this.from) {
+        this.logger.warn(
+          'Resend is disabled because RESEND_MAIL_FROM is missing',
+        );
+      }
+
       return;
     }
+
+    this.from = process.env.MAIL_FROM;
 
     if (
       !process.env.MAIL_HOST ||
@@ -56,7 +65,7 @@ export class EmailService {
 
   async send(message: EmailMessage): Promise<void> {
     if (!this.from) {
-      this.logger.error('Email delivery failed: MAIL_FROM is not configured');
+      this.logger.error('Email delivery failed: sender is not configured');
       throw new ServiceUnavailableException('Email service is unavailable');
     }
 

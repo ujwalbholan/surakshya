@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
+import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { RedisService } from 'src/config/redis/redis.service';
 import { OtpEmailService } from 'src/feature/notification/email/otp.email';
@@ -17,6 +18,8 @@ describe('AuthService', () => {
   let welcomeEmailService: jest.Mocked<WelcomeEmailService>;
 
   beforeEach(async () => {
+    jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -66,6 +69,10 @@ describe('AuthService', () => {
     welcomeEmailService = module.get(WelcomeEmailService);
 
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('should be defined', () => {

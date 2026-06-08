@@ -57,6 +57,7 @@ MAIL_FROM=noreply@example.com
 
 # HTTPS email provider (optional; takes priority over SMTP)
 RESEND_API_KEY=
+RESEND_MAIL_FROM=
 ```
 
 Use strong, private values for the JWT secrets and passwords. Do not commit
@@ -296,11 +297,12 @@ Resend uses HTTPS, so it works on Render's free tier:
 
 ```env
 RESEND_API_KEY=re_your_api_key
-MAIL_FROM=Surakshya <noreply@your-verified-domain.com>
+RESEND_MAIL_FROM=Surakshya <noreply@your-verified-domain.com>
 ```
 
-When `RESEND_API_KEY` is set, the application uses the Resend HTTPS API and
-does not use `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, or `MAIL_PASSWORD`.
+When `RESEND_API_KEY` and `RESEND_MAIL_FROM` are set, the application uses
+the Resend HTTPS API and does not use `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`,
+or `MAIL_PASSWORD`.
 Without `RESEND_API_KEY`, it falls back to SMTP for local development.
 
 Use the internal database and Key Value URLs when all three resources are in

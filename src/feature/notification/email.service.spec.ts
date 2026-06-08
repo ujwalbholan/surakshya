@@ -1,34 +1,40 @@
-import { ServiceUnavailableException } from '@nestjs/common';
+import { Logger, ServiceUnavailableException } from '@nestjs/common';
 import { EmailService } from './email.service';
 
 describe('EmailService', () => {
   const originalEnv = process.env;
-  const originalFetch = global.fetch;
+  const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
+    jest.spyOn(Logger.prototype, 'error').mockImplementation();
     process.env = {
       ...originalEnv,
       RESEND_API_KEY: 're_test_key',
-      MAIL_FROM: 'Surakshya <noreply@example.com>',
+      RESEND_MAIL_FROM: 'Surakshya <noreply@example.com>',
     };
   });
 
   afterEach(() => {
     process.env = originalEnv;
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
     jest.restoreAllMocks();
   });
 
   it('should send email through the Resend HTTPS API', async () => {
     let requestUrl: string | undefined;
     let requestInit: RequestInit | undefined;
-    global.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl =
-        typeof input === 'string'
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+    globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+      let url: string;
+
+      if (typeof input === 'string') {
+        url = input;
+      } else if (input instanceof URL) {
+        url = input.href;
+      } else {
+        url = input.url;
+      }
+
+      requestUrl = url;
       requestInit = init;
 
       return Promise.resolve(
@@ -64,7 +70,7 @@ describe('EmailService', () => {
   });
 
   it('should convert Resend API failures into a service error', async () => {
-    global.fetch = jest
+    globalThis.fetch = jest
       .fn()
       .mockResolvedValue(
         new Response('Domain is not verified', { status: 422 }),
