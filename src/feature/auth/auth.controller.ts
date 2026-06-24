@@ -29,7 +29,6 @@ export class AuthController {
     return this.authService.register(registerDto);
   }
 
-  //WIP i guess  we need to send token expectily in json fro mobile
   @Post('login')
   async login(
     @Body() loginDto: LoginDto,
@@ -42,6 +41,8 @@ export class AuthController {
     return {
       message: result.message,
       user: result.user,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
     };
   }
 
