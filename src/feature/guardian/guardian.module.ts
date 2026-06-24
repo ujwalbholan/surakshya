@@ -3,10 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from 'src/feature/user/entities/user.entity';
 import { GuardianLink } from './entities/guardian-link.entity';
 import { GuardianService } from './guardian.service';
-import {
-  GuardianController,
-  GuardianWardController,
-} from './guardian.controller';
+import { GuardianController } from './guardian.controller';
+import { GuardianWardController } from './guardian-ward.controller';
 import { RolesGuard } from 'src/utils/guard/roles.guard';
 
 @Module({

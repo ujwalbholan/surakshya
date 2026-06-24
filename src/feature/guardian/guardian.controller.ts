@@ -26,16 +26,3 @@ export class GuardianController {
     return this.guardianService.getMyGuardians(user.userId);
   }
 }
-
-@Controller('guardian')
-export class GuardianWardController {
-  constructor(private readonly guardianService: GuardianService) {}
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('GUARDIAN')
-  @Get('me')
-  getMyWard(@Req() req: Request) {
-    const user = req.user as { userId: string };
-    return this.guardianService.getMyWard(user.userId);
-  }
-}
