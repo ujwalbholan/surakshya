@@ -10,6 +10,7 @@ import { JwtStrategy } from './utils/strategies/jwt.strategy';
 import { RolesGuard } from './utils/guard/roles.guard';
 import { NotificationModule } from './feature/notification/notification.module';
 import { GuardianModule } from './feature/guardian/guardian.module';
+import { MqttModule } from './feature/mqtt/mqtt.module';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -50,6 +51,7 @@ const isProduction = process.env.NODE_ENV === 'production';
     PassportModule,
     NotificationModule,
     GuardianModule,
+    MqttModule,
   ],
   controllers: [AppController],
   providers: [AppService, JwtStrategy, RolesGuard],
