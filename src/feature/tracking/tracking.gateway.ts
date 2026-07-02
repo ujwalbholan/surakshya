@@ -19,7 +19,9 @@ import { LocationUpdatePayload } from './tracking.types';
     credentials: true,
   },
 })
-export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class TrackingGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(TrackingGateway.name);
 
   constructor(private readonly jwtService: JwtService) {}
@@ -39,10 +41,14 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
 
     try {
       const secret = process.env.JWT_ACCESS_SECRET;
-      if (!secret) throw new UnauthorizedException('JWT_ACCESS_SECRET is missing');
+      if (!secret)
+        throw new UnauthorizedException('JWT_ACCESS_SECRET is missing');
 
-      const payload = await this.jwtService.verifyAsync(token, { secret });
-      if ((payload as { type?: string }).type !== 'access') {
+      const payload = await this.jwtService.verifyAsync<{ type?: string }>(
+        token,
+        { secret },
+      );
+      if (payload.type !== 'access') {
         throw new UnauthorizedException('Invalid token type');
       }
     } catch {

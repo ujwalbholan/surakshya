@@ -9,6 +9,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import {
   ForgotPasswordDto,
@@ -24,11 +25,13 @@ import { JwtAuthGuard } from 'src/utils/guard/jwt-auth.guard';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('register')
   register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
 
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('login')
   async login(
     @Body() loginDto: LoginDto,
@@ -46,6 +49,7 @@ export class AuthController {
     };
   }
 
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('forgot-password')
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     const sanitizedEmail = dto.email.trim().toLowerCase();
@@ -53,7 +57,8 @@ export class AuthController {
     return this.authService.forgotPassword(sanitizedEmail);
   }
 
-  @Post('verify-reset-opt')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('verify-reset-otp')
   verifyResetOtp(@Body() verifyOpt: VerifyResetOtpDto) {
     const sanitizedOtp = verifyOpt.otp.trim();
     const sanitizedEmail = verifyOpt.email.trim().toLowerCase();
@@ -64,6 +69,7 @@ export class AuthController {
     });
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('reset-password')
   resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     const sanitizedEmail = resetPasswordDto.email.trim().toLowerCase();

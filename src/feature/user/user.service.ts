@@ -20,8 +20,10 @@ export class UserService {
   ) {}
 
   async register(createUserDto: CreateUserDto): Promise<User> {
+    const phone = this.normalizePhone(createUserDto.phone);
+
     const isEmailExist = await this.userRepository.findOne({
-      where: [{ email: createUserDto.email }, { phone: createUserDto.phone }],
+      where: [{ email: createUserDto.email }, { phone }],
     });
 
     if (isEmailExist?.email) {
@@ -36,11 +38,17 @@ export class UserService {
       full_name: createUserDto.full_name,
       email: createUserDto.email,
       password_hash: passwordHash,
-      phone: createUserDto.phone,
+      phone,
       role: createUserDto.role,
     });
 
     return this.userRepository.save(user);
+  }
+
+  private normalizePhone(phone: string): string {
+    const trimmed = phone.trim().replace(/^\+977/, '');
+    const cleaned = trimmed.replace(/[\s-]/g, '');
+    return cleaned;
   }
 
   async login(loginDto: LoginDto) {
@@ -113,7 +121,8 @@ export class UserService {
 
     if (updateUserDto.full_name) user.full_name = updateUserDto.full_name;
     if (updateUserDto.email) user.email = updateUserDto.email;
-    if (updateUserDto.phone) user.phone = updateUserDto.phone;
+    if (updateUserDto.phone)
+      user.phone = this.normalizePhone(updateUserDto.phone);
     if (updateUserDto.role) user.role = updateUserDto.role;
     if (updateUserDto.password) {
       user.password_hash = await bcrypt.hash(updateUserDto.password, 12);

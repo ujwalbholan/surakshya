@@ -3,6 +3,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { UserModule } from './feature/user/user.module';
 import { AuthModule } from './feature/auth/auth.module';
 import { PassportModule } from '@nestjs/passport';
@@ -25,6 +27,12 @@ const isProduction = process.env.NODE_ENV === 'production';
       ignoreEnvFile: isProduction,
       envFilePath: ['.local.env', '.env'],
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 60,
+      },
+    ]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
@@ -62,7 +70,12 @@ const isProduction = process.env.NODE_ENV === 'production';
     MqttModule,
   ],
   controllers: [AppController],
-  providers: [AppService, JwtStrategy, RolesGuard],
+  providers: [
+    AppService,
+    JwtStrategy,
+    RolesGuard,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
   exports: [AppService],
 })
 export class AppModule {}

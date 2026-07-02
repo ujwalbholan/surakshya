@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThan } from 'typeorm';
 import { User } from 'src/feature/user/entities/user.entity';
 import { Device } from 'src/feature/device/entities/device.entity';
 import { LocationPing } from 'src/feature/device/entities/location-ping.entity';
@@ -43,17 +43,13 @@ export class AdminService {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [
-      newUsersToday,
-      pingsToday,
-      resolvedSosToday,
-    ] = await Promise.all([
-      this.userRepo.count({ where: { created_at: { $gte: todayStart } as any } }),
-      this.pingRepo.count({ where: { recordedAt: { $gte: todayStart } as any } }),
+    const [newUsersToday, pingsToday, resolvedSosToday] = await Promise.all([
+      this.userRepo.count({ where: { created_at: MoreThan(todayStart) } }),
+      this.pingRepo.count({ where: { recordedAt: MoreThan(todayStart) } }),
       this.sosRepo.count({
         where: {
           status: 'resolved',
-          resolvedAt: { $gte: todayStart } as any,
+          resolvedAt: MoreThan(todayStart),
         },
       }),
     ]);
