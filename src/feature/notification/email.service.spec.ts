@@ -69,7 +69,8 @@ describe('EmailService', () => {
     });
   });
 
-  it('should convert Resend API failures into a service error', async () => {
+  it('should convert Resend API failures into a service error in production', async () => {
+    process.env.NODE_ENV = 'production';
     globalThis.fetch = jest
       .fn()
       .mockResolvedValue(
@@ -85,5 +86,32 @@ describe('EmailService', () => {
         html: '<p>Welcome</p>',
       }),
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+
+  it('should fall back to console log in non-production when Resend fails', async () => {
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    globalThis.fetch = jest
+      .fn()
+      .mockResolvedValue(
+        new Response('Domain is not verified', { status: 422 }),
+      ) as typeof fetch;
+    const service = new EmailService();
+
+    await expect(
+      service.send({
+        to: 'user@example.com',
+        subject: 'Welcome',
+        text: 'Welcome',
+        html: '<p>Welcome</p>',
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('falling back to console'),
+    );
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[Email stub]'),
+    );
   });
 });

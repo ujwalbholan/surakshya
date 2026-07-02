@@ -113,6 +113,17 @@ export class EmailService {
 
       if (!response.ok) {
         const details = await response.text();
+
+        if (process.env.NODE_ENV !== 'production') {
+          this.logger.warn(
+            `Resend rejected (${response.status}) — falling back to console. ${details}`,
+          );
+          this.logger.log(
+            `[Email stub] To: ${message.to} — Subject: ${message.subject}\nBody: ${message.text}`,
+          );
+          return;
+        }
+
         this.logger.error(
           `Resend rejected email with status ${response.status}: ${details}`,
         );
@@ -127,8 +138,18 @@ export class EmailService {
 
       const reason =
         error instanceof Error ? error.message : 'Unknown Resend API error';
-      this.logger.error(`Unable to reach Resend API: ${reason}`);
 
+      if (process.env.NODE_ENV !== 'production') {
+        this.logger.warn(
+          `Resend API error (${reason}) — falling back to console.`,
+        );
+        this.logger.log(
+          `[Email stub] To: ${message.to} — Subject: ${message.subject}\nBody: ${message.text}`,
+        );
+        return;
+      }
+
+      this.logger.error(`Unable to reach Resend API: ${reason}`);
       throw new ServiceUnavailableException('Email service is unavailable');
     }
   }

@@ -7,6 +7,7 @@ describe('PoliceController', () => {
   let service: jest.Mocked<PoliceService>;
 
   const mockPoliceService = {
+    getDashboard: jest.fn(),
     getActiveSosEvents: jest.fn(),
     getSosEventDetails: jest.fn(),
     resolveSosEvent: jest.fn(),
@@ -28,6 +29,19 @@ describe('PoliceController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  it('should get dashboard', async () => {
+    const expected = {
+      activeSosEvents: 5,
+      totalDevices: 100,
+      totalUsers: 500,
+    };
+    service.getDashboard.mockResolvedValue(expected);
+
+    const result = await controller.getDashboard();
+
+    expect(result).toEqual(expected);
   });
 
   it('should get active SOS events', async () => {

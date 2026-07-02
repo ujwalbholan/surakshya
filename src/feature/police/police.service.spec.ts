@@ -71,19 +71,20 @@ describe('PoliceService', () => {
             findOne: jest.fn(),
             findOneBy: jest.fn(),
             save: jest.fn(),
+            count: jest.fn(),
           },
         },
         {
           provide: getRepositoryToken(LocationPing),
-          useValue: { find: jest.fn(), findOne: jest.fn() },
+          useValue: { find: jest.fn(), findOne: jest.fn(), count: jest.fn() },
         },
         {
           provide: getRepositoryToken(Device),
-          useValue: { findOneBy: jest.fn() },
+          useValue: { findOneBy: jest.fn(), count: jest.fn() },
         },
         {
           provide: getRepositoryToken(User),
-          useValue: { findOneBy: jest.fn() },
+          useValue: { findOneBy: jest.fn(), count: jest.fn() },
         },
         {
           provide: getRepositoryToken(GuardianLink),
@@ -98,6 +99,26 @@ describe('PoliceService', () => {
     deviceRepo = module.get(getRepositoryToken(Device));
     userRepo = module.get(getRepositoryToken(User));
     linkRepo = module.get(getRepositoryToken(GuardianLink));
+  });
+
+  describe('getDashboard', () => {
+    it('should return dashboard stats', async () => {
+      sosRepo.count.mockResolvedValueOnce(5); // active SOS
+      deviceRepo.count.mockResolvedValueOnce(100); // total devices
+      userRepo.count.mockResolvedValueOnce(500); // total users
+      sosRepo.count.mockResolvedValueOnce(3); // SOS today
+      pingRepo.count.mockResolvedValueOnce(1200); // pings today
+      sosRepo.find.mockResolvedValueOnce([]); // resolved today
+
+      const result = await service.getDashboard();
+
+      expect(result.activeSosEvents).toBe(5);
+      expect(result.totalDevices).toBe(100);
+      expect(result.totalUsers).toBe(500);
+      expect(result.sosEventsToday).toBe(3);
+      expect(result.pingsToday).toBe(1200);
+      expect(result.resolvedToday).toEqual([]);
+    });
   });
 
   describe('getActiveSosEvents', () => {

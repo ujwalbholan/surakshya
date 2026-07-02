@@ -25,6 +25,12 @@ import { Roles } from 'src/decorators/roles.decorators';
 export class PoliceController {
   constructor(private readonly policeService: PoliceService) {}
 
+  @ApiOperation({ summary: 'Get police dashboard stats' })
+  @Get('dashboard')
+  getDashboard() {
+    return this.policeService.getDashboard();
+  }
+
   @ApiOperation({ summary: 'Get active SOS events' })
   @Get('sos-events')
   getActiveSosEvents() {
