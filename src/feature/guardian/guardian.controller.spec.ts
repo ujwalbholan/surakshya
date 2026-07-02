@@ -57,9 +57,12 @@ describe('GuardianController', () => {
 
     service.getMyGuardians.mockResolvedValue(expected);
 
-    const result = await controller.getMyGuardians(req);
+    const result = await controller.getMyGuardians(req, 1, 20);
 
-    expect(service.getMyGuardians).toHaveBeenCalledWith(userId);
+    expect(service.getMyGuardians).toHaveBeenCalledWith(userId, {
+      page: 1,
+      limit: 20,
+    });
     expect(result).toEqual(expected);
   });
 });

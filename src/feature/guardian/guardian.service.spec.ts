@@ -65,6 +65,7 @@ describe('GuardianService', () => {
           provide: getRepositoryToken(GuardianLink),
           useValue: {
             find: jest.fn(),
+            findAndCount: jest.fn(),
             save: jest.fn(),
             create: jest.fn(),
           },
@@ -132,32 +133,34 @@ describe('GuardianService', () => {
   });
 
   describe('getMyGuardians', () => {
-    it('should return guardians for a user', async () => {
+    it('should return paginated guardians for a user', async () => {
       const link = mockGuardianLink();
-      linkRepo.find.mockResolvedValue([link]);
+      linkRepo.findAndCount.mockResolvedValue([[link], 1]);
 
       const result = await service.getMyGuardians(userId);
 
       expect(result.guardians).toHaveLength(1);
+      expect(result.total).toBe(1);
       expect(result.guardians[0].full_name).toBe('Guardian');
     });
   });
 
   describe('getMyWard', () => {
     it('should throw if no wards found', async () => {
-      linkRepo.find.mockResolvedValue([]);
+      linkRepo.findAndCount.mockResolvedValue([[], 0]);
       await expect(service.getMyWard('guardian-id')).rejects.toThrow(
         NotFoundException,
       );
     });
 
-    it('should return wards for a guardian', async () => {
+    it('should return paginated wards for a guardian', async () => {
       const link = mockGuardianLink();
-      linkRepo.find.mockResolvedValue([link]);
+      linkRepo.findAndCount.mockResolvedValue([[link], 1]);
 
       const result = await service.getMyWard('guardian-id');
 
       expect(result.wards).toHaveLength(1);
+      expect(result.total).toBe(1);
       expect(result.wards[0].full_name).toBe('Test User');
     });
   });

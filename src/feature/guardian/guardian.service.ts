@@ -67,33 +67,53 @@ export class GuardianService {
     };
   }
 
-  async getMyGuardians(childUserId: string) {
-    const links = await this.guardianLinkRepository.find({
+  async getMyGuardians(
+    childUserId: string,
+    options: { page: number; limit: number } = { page: 1, limit: 20 },
+  ) {
+    const skip = (options.page - 1) * options.limit;
+    const [links, total] = await this.guardianLinkRepository.findAndCount({
       where: { child_user_id: childUserId },
       relations: ['guardian'],
       order: { created_at: 'DESC' },
+      skip,
+      take: options.limit,
     });
 
     return {
       message: 'Guardians retrieved successfully',
       guardians: links.map((link) => this.toPublicUser(link.guardian)),
+      total,
+      page: options.page,
+      limit: options.limit,
+      totalPages: Math.ceil(total / options.limit),
     };
   }
 
-  async getMyWard(guardianUserId: string) {
-    const links = await this.guardianLinkRepository.find({
+  async getMyWard(
+    guardianUserId: string,
+    options: { page: number; limit: number } = { page: 1, limit: 20 },
+  ) {
+    const skip = (options.page - 1) * options.limit;
+    const [links, total] = await this.guardianLinkRepository.findAndCount({
       where: { guardian_user_id: guardianUserId },
       relations: ['child'],
       order: { created_at: 'DESC' },
+      skip,
+      take: options.limit,
     });
 
-    if (links.length === 0) {
+    if (links.length === 0 && total === 0) {
       throw new NotFoundException('No wards linked to this guardian');
     }
 
     return {
       message: 'Wards retrieved successfully',
       wards: links.map((link) => this.toPublicUser(link.child)),
+      total,
+      page: options.page,
+      limit: options.limit,
+      totalPages: Math.ceil(total / options.limit),
     };
   }
 
