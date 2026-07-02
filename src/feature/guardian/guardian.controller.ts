@@ -9,6 +9,12 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request } from 'express';
 import { GuardianService } from './guardian.service';
 import { CreateGuardianDto } from './dto/create-guardian.dto';
@@ -16,11 +22,14 @@ import { JwtAuthGuard } from 'src/utils/guard/jwt-auth.guard';
 import { RolesGuard } from 'src/utils/guard/roles.guard';
 import { Roles } from 'src/decorators/roles.decorators';
 
+@ApiBearerAuth()
+@ApiTags('Guardians')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('guardians')
 export class GuardianController {
   constructor(private readonly guardianService: GuardianService) {}
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: 'Add a guardian for current user' })
   @Roles('USER')
   @Post()
   addGuardian(@Req() req: Request, @Body() dto: CreateGuardianDto) {
@@ -28,7 +37,9 @@ export class GuardianController {
     return this.guardianService.addGuardian(user.userId, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: 'Get my guardians (paginated)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @Roles('USER')
   @Get()
   getMyGuardians(

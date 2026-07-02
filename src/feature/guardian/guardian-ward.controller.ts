@@ -7,17 +7,28 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request } from 'express';
 import { GuardianService } from './guardian.service';
 import { JwtAuthGuard } from 'src/utils/guard/jwt-auth.guard';
 import { RolesGuard } from 'src/utils/guard/roles.guard';
 import { Roles } from 'src/decorators/roles.decorators';
 
+@ApiBearerAuth()
+@ApiTags('Guardian (Ward)')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('guardian')
 export class GuardianWardController {
   constructor(private readonly guardianService: GuardianService) {}
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: 'Get my ward info (paginated)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @Roles('GUARDIAN')
   @Get('me')
   getMyWard(

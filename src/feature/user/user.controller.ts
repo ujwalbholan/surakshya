@@ -11,6 +11,12 @@ import {
   Req,
   ParseUUIDPipe,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from 'src/utils/guard/jwt-auth.guard';
@@ -18,10 +24,13 @@ import type { Request } from 'express';
 import { RolesGuard } from 'src/utils/guard/roles.guard';
 import { Roles } from 'src/decorators/roles.decorators';
 
+@ApiTags('User')
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current authenticated user' })
   @UseGuards(JwtAuthGuard)
   @Get('me')
   me(@Req() req: Request) {
@@ -31,6 +40,8 @@ export class UserController {
     };
   }
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Admin-only route (example)' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Get('admin-only')
@@ -41,6 +52,8 @@ export class UserController {
     };
   }
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List all users (admin)' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Get()
@@ -48,6 +61,9 @@ export class UserController {
     return this.userService.findAll();
   }
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get user by ID (admin)' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Get(':id')
@@ -55,6 +71,9 @@ export class UserController {
     return this.userService.findOne(id);
   }
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update user by ID (admin)' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Patch(':id')
@@ -65,6 +84,9 @@ export class UserController {
     return this.userService.update(id, updateUserDto);
   }
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete user by ID (admin)' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Delete(':id')

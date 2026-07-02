@@ -9,6 +9,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import {
@@ -21,17 +22,22 @@ import {
 import type { Request, Response } from 'express';
 import { JwtAuthGuard } from 'src/utils/guard/jwt-auth.guard';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Register a new user' })
+  @ApiBody({ type: RegisterDto })
   @Post('register')
   register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @ApiOperation({ summary: 'Login with email and password' })
+  @ApiBody({ type: LoginDto })
   @Post('login')
   async login(
     @Body() loginDto: LoginDto,
@@ -50,6 +56,8 @@ export class AuthController {
   }
 
   @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @ApiOperation({ summary: 'Request password reset OTP' })
+  @ApiBody({ type: ForgotPasswordDto })
   @Post('forgot-password')
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     const sanitizedEmail = dto.email.trim().toLowerCase();
@@ -58,6 +66,8 @@ export class AuthController {
   }
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Verify reset OTP' })
+  @ApiBody({ type: VerifyResetOtpDto })
   @Post('verify-reset-otp')
   verifyResetOtp(@Body() verifyOpt: VerifyResetOtpDto) {
     const sanitizedOtp = verifyOpt.otp.trim();
@@ -70,6 +80,8 @@ export class AuthController {
   }
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Reset password with OTP' })
+  @ApiBody({ type: ResetPasswordDto })
   @Post('reset-password')
   resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     const sanitizedEmail = resetPasswordDto.email.trim().toLowerCase();
@@ -85,6 +97,7 @@ export class AuthController {
     });
   }
 
+  @ApiOperation({ summary: 'Refresh access token' })
   @Post('refresh')
   @HttpCode(HttpStatus.NO_CONTENT)
   async refresh(
@@ -102,6 +115,8 @@ export class AuthController {
     this.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
   }
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Logout and invalidate tokens' })
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
