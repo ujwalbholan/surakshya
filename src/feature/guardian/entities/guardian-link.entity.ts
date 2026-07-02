@@ -11,7 +11,10 @@ import {
 import { User } from 'src/feature/user/entities/user.entity';
 
 @Entity('guardian_links')
-@Unique('uq_guardian_links_child_guardian', ['child_user_id', 'guardian_user_id'])
+@Unique('uq_guardian_links_child_guardian', [
+  'child_user_id',
+  'guardian_user_id',
+])
 @Index('idx_guardian_links_child', ['child_user_id'])
 @Index('idx_guardian_links_guardian', ['guardian_user_id'])
 export class GuardianLink {

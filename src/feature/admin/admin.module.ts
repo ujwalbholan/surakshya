@@ -10,7 +10,13 @@ import { AdminService } from './admin.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Device, LocationPing, SosEvent, GuardianLink]),
+    TypeOrmModule.forFeature([
+      User,
+      Device,
+      LocationPing,
+      SosEvent,
+      GuardianLink,
+    ]),
   ],
   controllers: [AdminController],
   providers: [AdminService],

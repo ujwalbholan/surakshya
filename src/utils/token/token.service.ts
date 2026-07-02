@@ -76,14 +76,41 @@ export class TokenService {
       const key = this.refreshKey(payload.sub, payload.sessionId);
       const storedToken = await this.redisService.get(key);
 
-      if (!storedToken || storedToken !== refreshToken) {
-        throw new UnauthorizedException('Refresh Token expired or Recoved');
+      if (!storedToken) {
+        await this.revokeAllUserSessions(payload.sub);
+        throw new UnauthorizedException(
+          'Refresh token reused — all sessions revoked',
+        );
+      }
+
+      if (storedToken !== refreshToken) {
+        await this.revokeAllUserSessions(payload.sub);
+        throw new UnauthorizedException(
+          'Refresh token reused — all sessions revoked',
+        );
       }
 
       return payload;
-    } catch {
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
       throw new UnauthorizedException('Invalid Refresh Token');
     }
+  }
+
+  private async revokeAllUserSessions(userId: string) {
+    const pattern = `auth:refresh:${userId}:*`;
+    let cursor = '0';
+    do {
+      const [nextCursor, keys] = await this.redisService
+        .getClient()
+        .scan(cursor, 'MATCH', pattern, 'COUNT', '100');
+      cursor = nextCursor;
+      if (keys.length > 0) {
+        await this.redisService.getClient().del(...keys);
+      }
+    } while (cursor !== '0');
   }
 
   async revokedRefreshToken(userId: string, sessionId: string) {

@@ -10,7 +10,13 @@ import { PoliceService } from './police.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Device, LocationPing, SosEvent, GuardianLink]),
+    TypeOrmModule.forFeature([
+      User,
+      Device,
+      LocationPing,
+      SosEvent,
+      GuardianLink,
+    ]),
   ],
   controllers: [PoliceController],
   providers: [PoliceService],

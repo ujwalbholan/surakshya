@@ -94,7 +94,10 @@ export class PoliceService {
     });
 
     if (!latestPing) {
-      return { device: { id: device.id, imei: device.imei, label: device.label }, lastLocation: null };
+      return {
+        device: { id: device.id, imei: device.imei, label: device.label },
+        lastLocation: null,
+      };
     }
 
     return {
