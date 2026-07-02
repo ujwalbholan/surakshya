@@ -1,4 +1,12 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  DefaultValuePipe,
+  Get,
+  ParseIntPipe,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { GuardianService } from './guardian.service';
 import { JwtAuthGuard } from 'src/utils/guard/jwt-auth.guard';
@@ -12,8 +20,15 @@ export class GuardianWardController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('GUARDIAN')
   @Get('me')
-  getMyWard(@Req() req: Request) {
+  getMyWard(
+    @Req() req: Request,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+  ) {
     const user = req.user as { userId: string };
-    return this.guardianService.getMyWard(user.userId);
+    return this.guardianService.getMyWard(user.userId, {
+      page: page ?? 1,
+      limit: limit ?? 20,
+    });
   }
 }

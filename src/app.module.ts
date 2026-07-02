@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerStorage } from '@nestjs/throttler';
 import { UserModule } from './feature/user/user.module';
 import { AuthModule } from './feature/auth/auth.module';
 import { PassportModule } from '@nestjs/passport';
@@ -17,6 +18,9 @@ import { GuardianModule } from './feature/guardian/guardian.module';
 import { AdminModule } from './feature/admin/admin.module';
 import { PoliceModule } from './feature/police/police.module';
 import { MqttModule } from './feature/mqtt/mqtt.module';
+import { HealthModule } from './feature/health/health.module';
+import { RedisModule } from './config/redis/redis.module';
+import { RedisThrottlerStorage } from './config/redis/redis-throttler.service';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -52,12 +56,15 @@ const isProduction = process.env.NODE_ENV === 'production';
               }),
           ssl: sslEnabled ? { rejectUnauthorized: false } : false,
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          migrations: [__dirname + '/config/database/migrations/*{.ts,.js}'],
           synchronize: configService.get<string>('DB_SYNC') === 'true',
           logging: configService.get<string>('DB_LOGGING') === 'true',
         };
       },
       inject: [ConfigService],
     }),
+    HealthModule,
+    RedisModule,
     UserModule,
     AuthModule,
     DeviceModule,
@@ -75,6 +82,7 @@ const isProduction = process.env.NODE_ENV === 'production';
     JwtStrategy,
     RolesGuard,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: ThrottlerStorage, useClass: RedisThrottlerStorage },
   ],
   exports: [AppService],
 })

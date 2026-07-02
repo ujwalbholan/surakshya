@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { safeUser } from 'src/utils/safe-user';
 import { User } from 'src/feature/user/entities/user.entity';
 import { Device } from 'src/feature/device/entities/device.entity';
 import { LocationPing } from 'src/feature/device/entities/location-ping.entity';
@@ -118,8 +119,7 @@ export class PoliceService {
     const user = await this.userRepo.findOneBy({ id: userId });
     if (!user) throw new NotFoundException('User not found');
 
-    const { password_hash, ...rest } = user;
-    return rest;
+    return safeUser(user);
   }
 
   async getUserGuardians(userId: string) {

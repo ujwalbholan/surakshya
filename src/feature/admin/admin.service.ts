@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
+import { safeUser } from 'src/utils/safe-user';
 import { User } from 'src/feature/user/entities/user.entity';
 import { Device } from 'src/feature/device/entities/device.entity';
 import { LocationPing } from 'src/feature/device/entities/location-ping.entity';
@@ -103,7 +104,7 @@ export class AdminService {
       .getManyAndCount();
 
     return {
-      data: users.map(({ password_hash, ...rest }) => rest),
+      data: users.map((user) => safeUser(user)),
       total,
       page: options.page,
       limit: options.limit,
@@ -124,7 +125,7 @@ export class AdminService {
       relations: ['child', 'guardian'],
     });
 
-    const { password_hash, ...publicUser } = user;
+    const publicUser = safeUser(user);
 
     return {
       ...publicUser,
@@ -155,8 +156,7 @@ export class AdminService {
 
     user.is_active = dto.is_active;
     await this.userRepo.save(user);
-    const { password_hash, ...rest } = user;
-    return rest;
+    return safeUser(user);
   }
 
   async updateUserRole(id: string, dto: UpdateUserRoleDto) {
@@ -165,8 +165,7 @@ export class AdminService {
 
     user.role = dto.role;
     await this.userRepo.save(user);
-    const { password_hash, ...rest } = user;
-    return rest;
+    return safeUser(user);
   }
 
   async getDevices(page: number, limit: number) {

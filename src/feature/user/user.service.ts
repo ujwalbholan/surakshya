@@ -11,6 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from 'src/feature/auth/dto/auth.dto';
 import { TokenService } from 'src/utils/token/token.service';
+import { safeUser } from 'src/utils/safe-user';
 
 @Injectable()
 export class UserService {
@@ -95,14 +96,13 @@ export class UserService {
 
   async findAll(): Promise<Omit<User, 'password_hash'>[]> {
     const users = await this.userRepository.find();
-    return users.map(({ password_hash, ...rest }) => rest);
+    return users.map((user) => safeUser(user));
   }
 
   async findOne(id: string): Promise<Partial<User> | null> {
     const user = await this.userRepository.findOneBy({ id });
     if (!user) return null;
-    const { password_hash, ...rest } = user;
-    return rest;
+    return safeUser(user);
   }
 
   async findOneByEmail(email: string): Promise<User | null> {
