@@ -12,6 +12,7 @@ import { DeviceModule } from './feature/device/device.module';
 import { TrackingModule } from './feature/tracking/tracking.module';
 import { NotificationModule } from './feature/notification/notification.module';
 import { GuardianModule } from './feature/guardian/guardian.module';
+import { AdminModule } from './feature/admin/admin.module';
 import { MqttModule } from './feature/mqtt/mqtt.module';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -54,6 +55,7 @@ const isProduction = process.env.NODE_ENV === 'production';
     TrackingModule,
     PassportModule,
     NotificationModule,
+    AdminModule,
     GuardianModule,
     MqttModule,
   ],
