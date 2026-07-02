@@ -24,8 +24,11 @@ FROM dependencies AS build
 COPY nest-cli.json tsconfig.json tsconfig.build.json ./
 COPY src ./src
 
-RUN pnpm run build \
-    && pnpm prune --prod
+ENV HUSKY=0
+
+RUN pnpm run build
+
+RUN pnpm prune --prod
 
 FROM node:${NODE_VERSION}-slim AS runtime
 
