@@ -81,18 +81,19 @@ export class GuardianService {
   }
 
   async getMyWard(guardianUserId: string) {
-    const link = await this.guardianLinkRepository.findOne({
+    const links = await this.guardianLinkRepository.find({
       where: { guardian_user_id: guardianUserId },
       relations: ['child'],
+      order: { created_at: 'DESC' },
     });
 
-    if (!link) {
-      throw new NotFoundException('No ward linked to this guardian');
+    if (links.length === 0) {
+      throw new NotFoundException('No wards linked to this guardian');
     }
 
     return {
-      message: 'Ward retrieved successfully',
-      ward: this.toPublicUser(link.child),
+      message: 'Wards retrieved successfully',
+      wards: links.map((link) => this.toPublicUser(link.child)),
     };
   }
 

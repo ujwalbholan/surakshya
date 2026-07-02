@@ -109,11 +109,11 @@ describe('UserService', () => {
       const tokens = {
         accessToken: 'access-token',
         refreshToken: 'refresh-token',
-        sessionId: 'session-id',
+        sessionId: '550e8400-e29b-41d4-a716-446655440000',
       };
 
       repository.findOne.mockResolvedValue(user);
-      tokenService.generateToken.mockResolvedValue(tokens);
+      tokenService.generateToken.mockResolvedValue(tokens as never);
 
       const result = await service.login({
         email: user.email,
@@ -144,31 +144,33 @@ describe('UserService', () => {
   });
 
   describe('findAll', () => {
-    it('should return all users', async () => {
+    it('should return all users without password_hash', async () => {
       const users = [
         makeUser(),
         makeUser({ id: 'second-user-id', email: 'ram@gmail.com' }),
       ];
+      const expected = users.map(({ password_hash, ...rest }) => rest);
 
       repository.find.mockResolvedValue(users);
 
       const result = await service.findAll();
 
       expect(repository.find).toHaveBeenCalled();
-      expect(result).toEqual(users);
+      expect(result).toEqual(expected);
     });
   });
 
   describe('findOne', () => {
-    it('should return one user by id', async () => {
+    it('should return one user without password_hash', async () => {
       const user = makeUser();
+      const { password_hash, ...expected } = user;
 
       repository.findOneBy.mockResolvedValue(user);
 
       const result = await service.findOne('user-id');
 
       expect(repository.findOneBy).toHaveBeenCalledWith({ id: 'user-id' });
-      expect(result).toEqual(user);
+      expect(result).toEqual(expected);
     });
 
     it('should return null if user is not found', async () => {
@@ -193,6 +195,7 @@ describe('UserService', () => {
         full_name: dto.full_name,
         email: dto.email,
       });
+      const { password_hash, ...expected } = updatedUser;
 
       repository.update.mockResolvedValue({ affected: 1 } as UpdateResult);
       repository.findOneBy.mockResolvedValue(updatedUser);
@@ -207,7 +210,7 @@ describe('UserService', () => {
         }),
       );
       expect(repository.findOneBy).toHaveBeenCalledWith({ id: 'user-id' });
-      expect(result).toEqual(updatedUser);
+      expect(result).toEqual(expected);
     });
 
     it('should return null if updated user is not found', async () => {

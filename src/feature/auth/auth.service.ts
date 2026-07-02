@@ -65,7 +65,7 @@ export class AuthService {
     return this.tokenService.rotateRefreshToken(refreshToken);
   }
 
-  async forgetPassword(email: string) {
+  async forgotPassword(email: string) {
     const user = await this.userService.findOneByEmail(email);
 
     if (!user) {
