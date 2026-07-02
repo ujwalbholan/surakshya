@@ -13,8 +13,11 @@ RUN npm install --global pnpm@${PNPM_VERSION}
 
 COPY package.json pnpm-lock.yaml ./
 
+ENV HUSKY=0
+
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+    pnpm install --frozen-lockfile --ignore-scripts \
+    && pnpm rebuild bcrypt
 
 FROM dependencies AS build
 
