@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Test, TestingModule } from '@nestjs/testing';
+import type { Request } from 'express';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 
@@ -44,11 +45,13 @@ describe('AdminController', () => {
     expect(result).toEqual(expected);
   });
 
-  it('should get paginated users', async () => {
+  it('should get paginated users excluding self', async () => {
     const expected = { data: [], total: 0, page: 1, limit: 20, totalPages: 0 };
+    const req = { user: { userId: 'admin-id' } } as unknown as Request;
     service.getUsers.mockResolvedValue(expected);
 
     const result = await controller.getUsers(
+      req,
       undefined,
       undefined,
       undefined,
@@ -58,6 +61,7 @@ describe('AdminController', () => {
 
     expect(result).toEqual(expected);
     expect(service.getUsers).toHaveBeenCalledWith({
+      excludeUserId: 'admin-id',
       role: undefined,
       is_active: undefined,
       search: undefined,

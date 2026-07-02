@@ -9,7 +9,9 @@ import {
   UseGuards,
   DefaultValuePipe,
   ParseIntPipe,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -38,7 +40,9 @@ export class AdminController {
     return this.adminService.getStats();
   }
 
-  @ApiOperation({ summary: 'List users with filters (paginated)' })
+  @ApiOperation({
+    summary: 'List users with filters (paginated, excludes self)',
+  })
   @ApiQuery({ name: 'role', required: false })
   @ApiQuery({ name: 'is_active', required: false })
   @ApiQuery({ name: 'search', required: false })
@@ -46,13 +50,16 @@ export class AdminController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @Get('users')
   getUsers(
+    @Req() req: Request,
     @Query('role') role?: string,
     @Query('is_active') is_active?: string,
     @Query('search') search?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
   ) {
+    const user = req.user as { userId: string };
     return this.adminService.getUsers({
+      excludeUserId: user.userId,
       role,
       is_active: is_active !== undefined ? is_active === 'true' : undefined,
       search,

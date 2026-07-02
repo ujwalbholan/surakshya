@@ -71,6 +71,7 @@ export class AdminService {
   }
 
   async getUsers(options: {
+    excludeUserId?: string;
     role?: string;
     is_active?: boolean;
     search?: string;
@@ -78,6 +79,12 @@ export class AdminService {
     limit: number;
   }) {
     const query = this.userRepo.createQueryBuilder('user');
+
+    if (options.excludeUserId) {
+      query.andWhere('user.id != :excludeUserId', {
+        excludeUserId: options.excludeUserId,
+      });
+    }
 
     if (options.role) {
       query.andWhere('user.role = :role', { role: options.role });

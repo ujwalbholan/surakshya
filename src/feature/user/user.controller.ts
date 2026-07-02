@@ -53,12 +53,13 @@ export class UserController {
   }
 
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'List all users (admin)' })
+  @ApiOperation({ summary: 'List all users except self (admin)' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Get()
-  findAll() {
-    return this.userService.findAll();
+  findAll(@Req() req: Request) {
+    const user = req.user as { userId: string };
+    return this.userService.findAll(user.userId);
   }
 
   @ApiBearerAuth()
