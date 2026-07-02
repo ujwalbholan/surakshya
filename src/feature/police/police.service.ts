@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThan } from 'typeorm';
 import { safeUser } from 'src/utils/safe-user';
 import { User } from 'src/feature/user/entities/user.entity';
 import { Device } from 'src/feature/device/entities/device.entity';
@@ -22,6 +22,46 @@ export class PoliceService {
     @InjectRepository(GuardianLink)
     private readonly guardianLinkRepo: Repository<GuardianLink>,
   ) {}
+
+  async getDashboard() {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [
+      activeSosEvents,
+      totalDevices,
+      totalUsers,
+      sosEventsToday,
+      pingsToday,
+      resolvedToday,
+    ] = await Promise.all([
+      this.sosRepo.count({ where: { status: 'active' } }),
+      this.deviceRepo.count(),
+      this.userRepo.count(),
+      this.sosRepo.count({ where: { startedAt: MoreThan(todayStart) } }),
+      this.pingRepo.count({ where: { recordedAt: MoreThan(todayStart) } }),
+      this.sosRepo.find({
+        where: { status: 'resolved', resolvedAt: MoreThan(todayStart) },
+        relations: ['device'],
+        order: { resolvedAt: 'DESC' },
+        take: 10,
+      }),
+    ]);
+
+    return {
+      activeSosEvents,
+      totalDevices,
+      totalUsers,
+      sosEventsToday,
+      pingsToday,
+      resolvedToday: resolvedToday.map((e) => ({
+        id: e.id,
+        deviceImei: e.device.imei,
+        startedAt: e.startedAt,
+        resolvedAt: e.resolvedAt,
+      })),
+    };
+  }
 
   async getActiveSosEvents() {
     const events = await this.sosRepo.find({
