@@ -1,314 +1,878 @@
-# Surakshya Backend
+# Surakshya — Personal Safety Monitoring Platform
 
-NestJS backend for Surakshya. The application uses PostgreSQL, Redis, JWT
-authentication, and email notifications.
+Real-time personal safety monitoring backend. Wearable devices stream GPS telemetry via **MQTT**, data is persisted to **POSTGRES DB**, and live location updates are broadcast through **Socket.IO**. The platform supports multi-role access (USER, GUARDIAN, POLICE, ADMIN), SOS alerting, SMS/email notifications, and JWT-based authentication with refresh token rotation.
 
-## Requirements
+---
 
-For the Docker setup:
+## Table of Contents
 
-- Docker Desktop
-- Docker Compose
+- [Tech Stack](#tech-stack)
+- [Architecture Overview](#architecture-overview)
+- [Data Flow](#data-flow)
+- [Database Schema](#database-schema)
+- [Environment Variables](#environment-variables)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Local Setup](#local-setup)
+  - [Docker Setup](#docker-setup)
+- [Running Tests](#running-tests)
+- [API Reference](#api-reference)
+  - [App](#app)
+  - [Health](#health)
+  - [Auth](#auth)
+  - [User](#user)
+  - [Device](#device)
+  - [Guardians](#guardians)
+  - [Admin](#admin)
+  - [Police](#police)
+  - [Notification](#notification)
+  - [Tracking (WebSocket)](#tracking-websocket)
+- [Rate Limiting](#rate-limiting)
+- [Authentication](#authentication)
+- [Role-Based Access Control](#role-based-access-control)
+- [Project Structure](#project-structure)
+- [Deployment](#deployment)
+- [CI/CD](#cicd)
 
-For local development:
+---
 
-- Node.js 20 or newer
-- pnpm 10
-- PostgreSQL
-- Redis
+## Tech Stack
 
-## Environment Setup
+| Category | Technology | Purpose |
+|---|---|---|
+| **Runtime** | Node.js 20+ / 22 | JavaScript runtime |
+| **Framework** | NestJS 11 | Backend framework |
+| **Language** | TypeScript 5.7 | Type safety |
+| **Database** | PostgreSQL 16 + PostGIS 3.4 | Relational data + geospatial |
+| **ORM** | TypeORM 0.3 | Object-relational mapping |
+| **Cache** | Redis 7 | Session store, rate limiting, real-time |
+| **Auth** | Passport + JWT | Access/refresh tokens |
+| **Real-time** | Socket.IO | Live location streaming |
+| **IoT** | MQTT | Device telemetry ingestion |
+| **Email** | Resend API / Nodemailer (SMTP) | Transactional emails |
+| **SMS** | Twilio | SMS notifications |
+| **API Docs** | Swagger / OpenAPI | Interactive API documentation |
+| **Validation** | class-validator + class-transformer | DTO validation |
+| **Config** | @nestjs/config + dotenv | Environment configuration |
+| **CI** | GitHub Actions | Automated lint + test pipeline |
+| **Container** | Docker + Docker Compose | Containerized deployment |
+| **Package** | pnpm 10 | Package manager |
 
-Create a `.local.env` file in the project root for local development:
+---
 
-```env
-# PostgreSQL
-DB_HOST=localhost
-DB_PORT=5433
-DB_USERNAME=postgres
-DB_PASSWORD=your_database_password
-DB_NAME=surakshya
-DB_SYNC=true
+## Architecture Overview
 
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-
-# Hosted services (optional; preferred when set)
-DATABASE_URL=
-REDIS_URL=
-DB_SSL=false
-DB_LOGGING=false
-
-# JWT
-JWT_ACCESS_SECRET=your_access_token_secret
-JWT_REFRESH_SECRET=your_refresh_token_secret
-JWT_ACCESS_EXPIRES_IN=15m
-JWT_REFRESH_EXPIRES_IN=7d
-
-# Email
-MAIL_HOST=smtp.example.com
-MAIL_PORT=587
-MAIL_SECURE=false
-MAIL_USER=your_email_username
-MAIL_PASSWORD=your_email_password
-MAIL_FROM=noreply@example.com
-
-# HTTPS email provider (optional; takes priority over SMTP)
-RESEND_API_KEY=
-RESEND_MAIL_FROM=
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                        Wearable Devices                             │
+│                     (MQTT over TCP/TLS)                             │
+└────────────────────────┬───────────────────────────────────────────┘
+                         │  Topic: gps/tracker/{deviceId}
+                         ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                         MQTT Broker                                 │
+│                   (e.g., Mosquitto, EMQX)                           │
+└────────────────────────┬───────────────────────────────────────────┘
+                         │  Subscribe: gps/tracker/+
+                         ▼
+┌────────────────────────────────────────────────────────────────────┐
+│  ┌──────────────┐    ┌──────────────────┐    ┌──────────────────┐  │
+│  │  MqttService  │───▶│ TrackingService   │───▶│  PostGIS (DB)    │  │
+│  │  (mqtt.js)   │    │ (parse + persist) │    │ location_pings   │  │
+│  └──────────────┘    └─────────┬─────────┘    └──────────────────┘  │
+│                                │                                     │
+│                                ▼                                     │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                   TrackingGateway                              │    │
+│  │  emitLocationUpdate() → Socket.IO → room device:{deviceId}    │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                   REST API Controllers                        │    │
+│  │  Auth | User | Device | Guardian | Admin | Police | Notif    │    │
+│  │  All behind JwtAuthGuard + RolesGuard                         │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                   Supporting Services                         │    │
+│  │  RedisService │ TokenService │ EmailService │ SmsService     │    │
+│  │  RedisThrottlerStorage 🡘 Redis                               │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                   Swagger UI /api/docs                       │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-Use strong, private values for the JWT secrets and passwords. Do not commit
-environment files.
+### Key Design Decisions
 
-Environment loading works as follows:
+| Decision | Rationale |
+|---|---|
+| **Feature modules** | Each domain (auth, user, device, etc.) is self-contained with controller, service, entities, DTOs, and tests |
+| **MQTT → WebSocket pipeline** | Decouples IoT ingestion from real-time delivery via `TrackingIngestService` interface |
+| **Redis-backed rate limiting** | Custom `RedisThrottlerStorage` enables distributed rate limiting across multiple instances |
+| **Token reuse detection** | Refresh token rotation detects theft — if a rotated token is reused, ALL sessions for that user are revoked |
+| **Dual email providers** | Resend (HTTPS API) preferred; Nodemailer/SMTP as fallback. Console stub in non-production |
+| **SMS stub mode** | When Twilio is unconfigured, SMS is logged to console for development |
 
-- Local development loads `.local.env`, then falls back to `.env`.
-- Production ignores local files and uses variables injected by the hosting
-  platform.
-- Docker Compose injects `.local.env` and changes the database and Redis
-  hosts to their Compose service names.
+---
 
-## Run With Docker Compose
+## Data Flow
 
-Docker Compose builds the backend and starts the complete stack:
-
-- Backend: `http://localhost:3000`
-- PostgreSQL: `localhost:5433`
-- Redis: `localhost:6379`
-
-Build and start all services:
-
-```bash
-docker compose up --build
+### Device Telemetry Pipeline
+```
+Wearable Device
+      │
+      │  MQTT publish to "gps/tracker/{imei}"
+      ▼
+MQTT Broker (Mosquitto/EMQX)
+      │
+      │  MqttService.onMessage()
+      ▼
+TrackingService.ingestMqttMessage(topic, payload)
+      │
+      ├── Try JSON.parse → ingestJson()
+      └── Else → parseDeviceTelemetry() (NMEA $GPGGA/$GPRMC)
+               │
+               ▼
+      TrackingService.ingestTelemetry()
+               │
+               ├── Find or create Device by IMEI
+               ├── Save LocationPing to PostGIS
+               └── TrackingGateway.emitLocationUpdate(payload)
+                         │
+                         ▼
+              Socket.IO room "device:{deviceId}"
+                         │
+                         ▼
+              All subscribed WebSocket clients
 ```
 
-Run them in the background:
-
-```bash
-docker compose up -d --build
+### Authentication Flow
+```
+Client                    Server                       Redis / DB
+  │                         │                            │
+  │  POST /auth/login       │                            │
+  │────────────────────────▶│                            │
+  │                         │  Validate credentials       │
+  │                         │───────────────────────────▶│
+  │                         │◀───────────────────────────│
+  │                         │                            │
+  │                         │  Generate access+refresh    │
+  │                         │  Store refresh in Redis     │
+  │                         │───────────────────────────▶│
+  │  { accessToken,         │                            │
+  │    refreshToken }       │                            │
+  │◀────────────────────────│                            │
+  │                         │                            │
+  │  GET /user/me           │                            │
+  │  Authorization: Bearer  │                            │
+  │────────────────────────▶│                            │
+  │                         │  Verify JWT (Passport)     │
+  │                         │  Extract userId, role      │
+  │                         │                            │
+  │  { user }               │                            │
+  │◀────────────────────────│                            │
 ```
 
-Check service status:
-
-```bash
-docker compose ps
+### SOS Alert Flow
+```
+User device                Backend                    Guardians / Police
+  │                         │                            │
+  │  SOS button pressed     │                            │
+  │  MQTT: sos/active/{imei}│                            │
+  │────────────────────────▶│                            │
+  │                         │  Create SosEvent (active)   │
+  │                         │  SMS/Email guardians        │
+  │                         │  Notify police via WS       │
+  │                         │                            │
+  │                         │  POST /notification/send-sms│
+  │                         │───────────────────────────▶│  Twilio
+  │                         │◀───────────────────────────│
+  │                         │                            │
+  │  MQTT: sos/resolved     │  Police resolves via API    │
+  │────────────────────────▶│  PATCH /police/.../resolve  │
+  │                         │  SosEvent → resolved        │
 ```
 
-Follow backend logs:
+---
 
-```bash
-docker compose logs -f backend
+## Database Schema
+
+### Entity Relationship Diagram
+
+```
+┌───────────────┐       ┌──────────────────┐       ┌────────────────┐
+│     User      │       │     Device       │       │  LocationPing  │
+├───────────────┤       ├──────────────────┤       ├────────────────┤
+│ id (PK, UUID) │       │ id (PK, UUID)    │       │ id (PK, UUID)  │
+│ full_name     │       │ imei (UNIQUE)    │◀──────│ device_id (FK) │
+│ email (UNIQUE)│       │ label            │ 1:N   │ latitude       │
+│ phone (UNIQUE)│       └──────────────────┘       │ longitude      │
+│ password_hash │                                  │ altitudeM      │
+│ role (ENUM)   │                                  │ speedKmph      │
+│ is_active     │                                  │ satellites     │
+│ created_at    │                                  │ hdop           │
+│ updated_at    │                                  │ recordedAt     │
+└───────┬───────┘                                  │ sos_event_id   │
+        │                                         └───────┬────────┘
+        │ 1:N                                            │
+        │                                                 │ N:1
+        ▼                                                 ▼
+┌───────────────────┐                           ┌──────────────────┐
+│   GuardianLink    │                           │    SosEvent      │
+├───────────────────┤                           ├──────────────────┤
+│ id (PK, UUID)     │                           │ id (PK, UUID)    │
+│ child_user_id (FK)│                           │ device_id (FK)   │
+│ guardian_user_id  │                           │ status           │
+│ created_at        │                           │ startedAt        │
+└───────────────────┘                           │ resolvedAt       │
+                                                └──────────────────┘
 ```
 
-Stop the services:
+### Tables
+
+#### `users` — Platform users
+
+| Column | Type | Constraints | Notes |
+|---|---|---|---|
+| `id` | UUID | PK, auto-generated | |
+| `full_name` | VARCHAR(150) | NOT NULL | |
+| `email` | VARCHAR(255) | UNIQUE, NULLABLE | |
+| `phone` | VARCHAR(30) | UNIQUE, NOT NULL | Normalized (stripped +977, dashes) |
+| `password_hash` | TEXT | NULLABLE | bcrypt, 12 rounds |
+| `role` | ENUM | NOT NULL, DEFAULT `'USER'` | USER, GUARDIAN, POLICE, ADMIN, SUPER_ADMIN |
+| `is_active` | BOOLEAN | NOT NULL, DEFAULT `true` | Soft disable |
+| `created_at` | TIMESTAMP | Auto-set | |
+| `updated_at` | TIMESTAMP | Auto-updated | |
+
+**Indices:** `idx_users_phone`, `idx_users_role`
+
+#### `device` — Registered wearable devices
+
+| Column | Type | Constraints |
+|---|---|---|
+| `id` | UUID | PK, auto-generated |
+| `imei` | VARCHAR | UNIQUE, NOT NULL |
+| `label` | VARCHAR | NULLABLE |
+
+#### `location_pings` — GPS telemetry records
+
+| Column | Type | Constraints |
+|---|---|---|
+| `id` | UUID | PK, auto-generated |
+| `device_id` | UUID | FK → device.id, CASCADE |
+| `sos_event_id` | UUID | FK → sos_events.id, SET NULL |
+| `latitude` | DOUBLE PRECISION | NOT NULL |
+| `longitude` | DOUBLE PRECISION | NOT NULL |
+| `altitude_m` | DOUBLE PRECISION | NULLABLE |
+| `speed_kmph` | DOUBLE PRECISION | NULLABLE |
+| `satellites` | INT | NULLABLE |
+| `hdop` | DOUBLE PRECISION | NULLABLE |
+| `recorded_at` | TIMESTAMP | Auto-set |
+
+#### `sos_events` — SOS alert events
+
+| Column | Type | Constraints |
+|---|---|---|
+| `id` | UUID | PK, auto-generated |
+| `device_id` | UUID | FK → device.id, CASCADE |
+| `status` | VARCHAR | DEFAULT `'active'` |
+| `started_at` | TIMESTAMP | Auto-set |
+| `resolved_at` | TIMESTAMPTZ | NULLABLE |
+
+#### `guardian_links` — User-guardian relationships
+
+| Column | Type | Constraints |
+|---|---|---|
+| `id` | UUID | PK, auto-generated |
+| `child_user_id` | UUID | FK → users.id |
+| `guardian_user_id` | UUID | FK → users.id |
+| `created_at` | TIMESTAMP | Auto-set |
+
+**Unique constraint:** `(child_user_id, guardian_user_id)`
+
+---
+
+## Environment Variables
+
+### Required
+
+| Variable | Description | Default |
+|---|---|---|
+| `JWT_ACCESS_SECRET` | Secret for signing access tokens | — |
+| `JWT_REFRESH_SECRET` | Secret for signing refresh tokens | — |
+
+### Database
+
+| Variable | Description | Default |
+|---|---|---|
+| `DATABASE_URL` | Full PostgreSQL connection string (overrides individual vars) | — |
+| `DB_HOST` | PostgreSQL host | `127.0.0.1` |
+| `DB_PORT` | PostgreSQL port | `5432` |
+| `DB_USERNAME` | PostgreSQL user | `postgres` |
+| `DB_PASSWORD` | PostgreSQL password | `somthing` |
+| `DB_NAME` | PostgreSQL database name | `surakshya` |
+| `DB_SSL` | Enable SSL connection (`true`/`false`) | `false` |
+| `DB_SYNC` | Auto-sync schema (dev only, `true`/`false`) | `false` |
+| `DB_LOGGING` | SQL query logging (`true`/`false`) | `false` |
+
+### Redis
+
+| Variable | Description | Default |
+|---|---|---|
+| `REDIS_URL` | Full Redis connection string (overrides host/port/password) | — |
+| `REDIS_HOST` | Redis host | `127.0.0.1` |
+| `REDIS_PORT` | Redis port | `6379` |
+| `REDIS_PASSWORD` | Redis password | — |
+
+### JWT
+
+| Variable | Description | Default |
+|---|---|---|
+| `JWT_ACCESS_EXPIRES_IN` | Access token expiry | `15m` |
+| `JWT_REFRESH_EXPIRES_IN` | Refresh token expiry | `7d` |
+
+### Email (Resend — preferred)
+
+| Variable | Description |
+|---|---|
+| `RESEND_API_KEY` | Resend API key |
+| `RESEND_MAIL_FROM` | Sender address (e.g., `Surakshya <noreply@example.com>`) |
+
+### Email (SMTP — fallback)
+
+| Variable | Description |
+|---|---|
+| `MAIL_HOST` | SMTP host |
+| `MAIL_PORT` | SMTP port |
+| `MAIL_SECURE` | Use TLS (`true`/`false`) |
+| `MAIL_USER` | SMTP username |
+| `MAIL_PASSWORD` | SMTP password |
+| `MAIL_FROM` | Sender address |
+
+### SMS
+
+| Variable | Description |
+|---|---|
+| `TWILIO_ACCOUNT_SID` | Twilio account SID |
+| `TWILIO_AUTH_TOKEN` | Twilio auth token |
+| `TWILIO_PHONE_NUMBER` | Twilio sending number |
+
+### MQTT
+
+| Variable | Description | Default |
+|---|---|---|
+| `MQTT_BROKER_URL` | MQTT broker URL | `mqtt://192.168.100.134:1883` |
+
+### Application
+
+| Variable | Description | Default |
+|---|---|---|
+| `PORT` | HTTP server port | `3000` |
+| `CORS_ORIGIN` | Allowed CORS origin | `http://localhost:3000` |
+| `NODE_ENV` | Environment mode | — |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- **Node.js** 20.x or 22.x
+- **pnpm** 10.x (`npm install -g pnpm@10`)
+- **PostgreSQL** 16+ with PostGIS (`postgis/postgis:16-3.4`)
+- **Redis** 7+
+
+### Local Setup
 
 ```bash
-docker compose down
-```
+# 1. Clone the repository
+git clone <repo-url>
+cd backend
 
-Stop the services and delete PostgreSQL and Redis data:
-
-```bash
-docker compose down -v
-```
-
-The Compose project is named `surakshya`, so Docker Desktop groups the
-backend, PostgreSQL, and Redis containers together.
-
-## Build And Run The Docker Image Manually
-
-Build the multi-stage production image:
-
-```bash
-docker build -t surakshya-backend .
-```
-
-When running the image outside Compose, PostgreSQL and Redis must already be
-available. Start the container with the environment file:
-
-```bash
-docker run --name surakshya-backend \
-  --env-file .local.env \
-  -p 3000:3000 \
-  surakshya-backend
-```
-
-When the database and Redis are other Docker containers, place all containers
-on the same Docker network and use their container or service names for
-`DB_HOST` and `REDIS_HOST`.
-
-Do not use `localhost` for PostgreSQL or Redis from inside the backend
-container. Inside a container, `localhost` refers to that same container.
-
-Stop and remove the manually started container:
-
-```bash
-docker rm -f surakshya-backend
-```
-
-## Run Locally
-
-Install dependencies:
-
-```bash
+# 2. Install dependencies
 pnpm install
+
+# 3. Create environment file
+cp .env .local.env
+# Edit .local.env with your local database/redis credentials
+
+# 4. Start PostgreSQL and Redis
+# Option A: Use Docker for infrastructure only
+docker run -d --name surakshya-postgis \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=somthing \
+  -e POSTGRES_DB=surakshya \
+  -p 5432:5432 \
+  postgis/postgis:16-3.4
+
+docker run -d --name surakshya-redis \
+  -p 6379:6379 \
+  redis:7-alpine
+
+# Option B: Use Docker Compose for everything
+docker compose up -d
+
+# 5. Start the development server
+pnpm start:dev
+
+# 6. Open in browser
+# API:        http://localhost:3000
+# Swagger UI: http://localhost:3000/api/docs
 ```
 
-Start PostgreSQL and Redis with Docker:
+### Docker Setup
 
 ```bash
+# Build and run the full stack (backend + PostGIS + Redis)
+docker compose up --build
+
+# Or build only the backend image
+docker build --no-cache -t surakshya-backend .
+
+# Run with infrastructure
 docker compose up -d postgres redis
+docker run -p 3000:3000 --env-file .local.env surakshya-backend
 ```
 
-Start the NestJS development server with file watching:
+---
+
+## Running Tests
 
 ```bash
-pnpm run start:dev
-```
-
-The API is available at `http://localhost:3000`.
-
-## Production Build
-
-Compile the application:
-
-```bash
-pnpm run build
-```
-
-Run the compiled application:
-
-```bash
-pnpm run start:prod
-```
-
-## Authentication Session
-
-The authentication cookies are HTTP-only:
-
-- Access token lifetime: 15 minutes
-- Refresh token lifetime: 7 days
-
-`POST /auth/refresh` verifies and revokes the current refresh token, creates a
-new access/refresh token pair, and replaces both cookies. A successful refresh
-returns `204 No Content`.
-
-The frontend can call this endpoint approximately 30 seconds before access
-token expiry:
-
-```ts
-const refreshInterval = 14.5 * 60 * 1000;
-
-const timer = window.setInterval(async () => {
-  const response = await fetch('/auth/refresh', {
-    method: 'POST',
-    credentials: 'include',
-  });
-
-  if (response.status === 401) {
-    window.clearInterval(timer);
-    // Clear client-side user state and redirect to login.
-  }
-}, refreshInterval);
-```
-
-The frontend should also retry refresh after an API request receives `401`,
-because browser timers can pause in inactive tabs. Access-token expiry alone
-does not log the user out; logout occurs when the refresh token expires, is
-revoked, or cannot be rotated.
-
-## Tests And Code Quality
-
-```bash
-# Unit tests
+# Run all tests
 pnpm test
 
-# End-to-end tests
-pnpm run test:e2e
+# Watch mode
+pnpm test:watch
 
-# Test coverage
-pnpm run test:cov
+# With coverage
+pnpm test:cov
 
-# Lint and automatically fix supported issues
-pnpm run lint
+# E2E tests (requires running database)
+pnpm test:e2e
 
-# Format source and test files
-pnpm run format
+# Lint
+pnpm lint
+
+# Format
+pnpm format
 ```
 
-## Docker Networking
+**Test setup requires** a running PostgreSQL and Redis instance with the following env vars:
 
-Inside Docker Compose, services communicate using service names:
-
-```text
-Backend -> postgres:5432
-Backend -> redis:6379
+```bash
+DB_HOST=127.0.0.1 DB_PORT=5432 DB_USERNAME=postgres DB_PASSWORD=postgres DB_NAME=surakshya_test DB_SYNC=true REDIS_HOST=127.0.0.1 REDIS_PORT=6379 JWT_ACCESS_SECRET=test-access-secret JWT_REFRESH_SECRET=test-refresh-secret pnpm test
 ```
 
-From the host machine, use the published ports:
+---
 
-```text
-PostgreSQL -> localhost:5433
-Redis      -> localhost:6379
-Backend    -> localhost:3000
+## API Reference
+
+Swagger UI is available at **`/api/docs`** when the server is running.
+
+### Auth
+
+Base path: `/auth`
+
+| Method | Path | Auth | Rate Limit | Description |
+|---|---|---|---|---|
+| `POST` | `/auth/register` | — | 5/min | Register a new user |
+| `POST` | `/auth/login` | — | 10/min | Login, returns access + refresh tokens |
+| `POST` | `/auth/forgot-password` | — | 3/min | Request password reset OTP by email |
+| `POST` | `/auth/verify-reset-otp` | — | 5/min | Verify the OTP sent via email |
+| `POST` | `/auth/reset-password` | — | 5/min | Reset password with verified OTP |
+| `POST` | `/auth/refresh` | Cookie | — | Refresh access token via `refresh_token` cookie |
+| `POST` | `/auth/logout` | Bearer | — | Logout, revoke refresh token, clear cookies |
+
+**Request/Response Examples:**
+
+<details>
+<summary>Register</summary>
+
+**Request:**
+```json
+{
+  "full_name": "John Doe",
+  "phone": "+9779812345678",
+  "email": "john@example.com",
+  "password": "securePass123",
+  "role": "USER"
+}
 ```
 
-## Deploy On Render
+**Response:** `201 Created`
+```json
+{
+  "id": "uuid",
+  "full_name": "John Doe",
+  "email": "john@example.com",
+  "phone": "9812345678",
+  "role": "USER",
+  "is_active": true
+}
+```
+</details>
 
-Create three Render resources in the same region:
+<details>
+<summary>Login</summary>
 
-1. A PostgreSQL database.
-2. A Key Value instance.
-3. A Docker web service connected to this repository.
-
-In the web service environment settings, add:
-
-```env
-DATABASE_URL=<Render PostgreSQL internal URL>
-REDIS_URL=<Render Key Value internal URL>
-DB_SYNC=true
-DB_SSL=false
-JWT_ACCESS_SECRET=<strong secret>
-JWT_REFRESH_SECRET=<strong secret>
-JWT_ACCESS_EXPIRES_IN=15m
-JWT_REFRESH_EXPIRES_IN=7d
+**Request:**
+```json
+{
+  "email": "john@example.com",
+  "password": "securePass123"
+}
 ```
 
-Also add the required `MAIL_*` variables. Render provides `PORT`
-automatically, and the application listens on that value.
+**Response:** `201 Created`
+```json
+{
+  "message": "Login Successfull",
+  "user": { "id": "uuid", "full_name": "John Doe", "email": "john@example.com", "phone": "9812345678", "role": "USER" },
+  "accessToken": "eyJhbGci...",
+  "refreshToken": "eyJhbGci..."
+}
+```
+</details>
 
-Render free web services block outbound SMTP ports `25`, `465`, and `587`.
-Gmail SMTP on port `587` therefore requires a paid Render instance. On a free
-instance, use an email provider with an HTTPS API instead of SMTP.
+---
 
-### Resend HTTPS Email
+### User
 
-Resend uses HTTPS, so it works on Render's free tier:
+Base path: `/user`
+Guards: `JwtAuthGuard`, `RolesGuard`
 
-1. Create an account at `https://resend.com`.
-2. Add a domain you own in the Resend dashboard.
-3. Add the SPF and DKIM records shown by Resend to your DNS provider.
-4. Wait until the domain status is verified.
-5. Create a Resend API key.
-6. Add these environment variables to the Render web service:
+| Method | Path | Auth | Roles | Description |
+|---|---|---|---|---|
+| `GET` | `/user/me` | Bearer | Any authenticated | Get current user info |
+| `GET` | `/user/admin-only` | Bearer | ADMIN | Example admin-only route |
+| `GET` | `/user` | Bearer | ADMIN | List all users (excludes self) |
+| `GET` | `/user/:id` | Bearer | ADMIN | Get user by ID |
+| `PATCH` | `/user/:id` | Bearer | ADMIN | Update user |
+| `DELETE` | `/user/:id` | Bearer | ADMIN | Delete user |
 
-```env
-RESEND_API_KEY=re_your_api_key
-RESEND_MAIL_FROM=Surakshya <noreply@your-verified-domain.com>
+---
+
+### Device
+
+Base path: `/device`
+Guards: `JwtAuthGuard`, `RolesGuard` (ADMIN only)
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/device` | Create a new device |
+| `GET` | `/device` | List all devices |
+| `GET` | `/device/:id` | Get device by ID |
+| `PATCH` | `/device/:id` | Update device |
+| `DELETE` | `/device/:id` | Delete device |
+
+---
+
+### Guardians
+
+Base path: `/guardians` / `/guardian`
+Guards: `JwtAuthGuard`, `RolesGuard`
+
+| Method | Path | Roles | Description |
+|---|---|---|---|
+| `POST` | `/guardians` | USER | Add a guardian for current user |
+| `GET` | `/guardians` | USER | Get my guardians (paginated: `?page=1&limit=20`) |
+| `GET` | `/guardian/me` | GUARDIAN | Get my ward info (paginated: `?page=1&limit=20`) |
+
+---
+
+### Admin
+
+Base path: `/admin`
+Guards: `JwtAuthGuard`, `RolesGuard` (ADMIN, SUPER_ADMIN)
+
+| Method | Path | Query Params | Description |
+|---|---|---|---|
+| `GET` | `/admin/stats` | — | Platform statistics |
+| `GET` | `/admin/users` | `?role=&is_active=&search=&page=1&limit=20` | List users (paginated, excludes self) |
+| `GET` | `/admin/users/:id` | — | Get user details |
+| `PATCH` | `/admin/users/:id/status` | — | Update user active status |
+| `PATCH` | `/admin/users/:id/role` | — | Update user role |
+| `GET` | `/admin/devices` | `?page=1&limit=20` | List all devices |
+| `GET` | `/admin/sos-events` | `?status=active|resolved&page=1&limit=20` | List SOS events |
+| `GET` | `/admin/sos-events/:id` | — | Get SOS event details |
+| `PATCH` | `/admin/sos-events/:id/resolve` | — | Resolve an SOS event |
+
+**Stats Response:**
+```json
+{
+  "totalUsers": 150,
+  "totalDevices": 85,
+  "totalPings": 45230,
+  "activeSosEvents": 3,
+  "usersByRole": [
+    { "role": "USER", "count": 100 },
+    { "role": "GUARDIAN", "count": 30 },
+    { "role": "POLICE", "count": 15 },
+    { "role": "ADMIN", "count": 5 }
+  ],
+  "newUsersToday": 2,
+  "pingsToday": 1200,
+  "resolvedSosToday": 1
+}
 ```
 
-When `RESEND_API_KEY` and `RESEND_MAIL_FROM` are set, the application uses
-the Resend HTTPS API and does not use `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`,
-or `MAIL_PASSWORD`.
-Without `RESEND_API_KEY`, it falls back to SMTP for local development.
+---
 
-Use the internal database and Key Value URLs when all three resources are in
-the same Render region. If an external PostgreSQL URL is required, set
-`DB_SSL=true`.
+### Police
 
-This project does not have database migrations yet, so `DB_SYNC=true` is
-needed for a new database. Add migrations and change it to `false` before
-using the service for important production data.
+Base path: `/police`
+Guards: `JwtAuthGuard`, `RolesGuard` (POLICE, ADMIN, SUPER_ADMIN)
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/police/dashboard` | Police dashboard stats |
+| `GET` | `/police/sos-events` | Get active SOS events with latest locations |
+| `GET` | `/police/sos-events/:id` | Get SOS event details + location history |
+| `PATCH` | `/police/sos-events/:id/resolve` | Resolve an SOS event |
+| `GET` | `/police/devices/:id/location` | Get device latest location |
+| `GET` | `/police/users/:id` | Get user info |
+| `GET` | `/police/users/:id/guardians` | Get user's guardians |
+
+**Dashboard Response:**
+```json
+{
+  "activeSosEvents": 3,
+  "totalDevices": 85,
+  "totalUsers": 150,
+  "sosEventsToday": 5,
+  "pingsToday": 1200,
+  "resolvedToday": [
+    { "id": "uuid", "deviceImei": "1234567890", "startedAt": "...", "resolvedAt": "..." }
+  ]
+}
+```
+
+---
+
+### Notification
+
+Base path: `/notification`
+Guards: `JwtAuthGuard`, `RolesGuard` (ADMIN, SUPER_ADMIN, POLICE)
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/notification/send-sms` | Send SMS via Twilio (or console stub) |
+| `POST` | `/notification/send-email` | Send email via Resend or SMTP |
+
+---
+
+### Health
+
+Base path: `/health`
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Health check endpoint |
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-07-02T22:00:00.000Z",
+  "uptime": 12345.67
+}
+```
+
+### App
+
+Base path: `/`
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/` | Root endpoint |
+
+---
+
+### Tracking (WebSocket)
+
+**Namespace:** `/tracking`
+**Auth:** Pass JWT access token via `handshake.auth.token` or `handshake.query.token`
+
+| Direction | Event | Payload | Description |
+|---|---|---|---|
+| Client → Server | `subscribe_device` | `{ deviceId: "imei-123" }` or `"imei-123"` | Subscribe to real-time location updates for a device |
+| Client → Server | `unsubscribe_device` | `{ deviceId: "imei-123" }` or `"imei-123"` | Unsubscribe from a device |
+| Server → Client | `location_update` | `{ id, deviceId, latitude, longitude, altitudeM, speedKmph, satellites, hdop, recordedAt }` | Real-time location ping |
+
+```js
+// Client connection example
+const socket = io('https://host/tracking', {
+  auth: { token: 'eyJhbGci...' }
+});
+
+socket.emit('subscribe_device', { deviceId: 'imei-123' });
+
+socket.on('location_update', (data) => {
+  console.log('New location:', data.latitude, data.longitude);
+});
+```
+
+---
+
+## Rate Limiting
+
+| Scope | Limit | Key |
+|---|---|---|
+| **Global** | 60 requests / 60s | Per IP |
+| `POST /auth/register` | 5 requests / 60s | Per IP |
+| `POST /auth/login` | 10 requests / 60s | Per IP |
+| `POST /auth/forgot-password` | 3 requests / 60s | Per IP |
+| `POST /auth/verify-reset-otp` | 5 requests / 60s | Per IP |
+| `POST /auth/reset-password` | 5 requests / 60s | Per IP |
+
+Rate limiting is backed by **Redis** for distributed counting. Storage implemented via custom `RedisThrottlerStorage`.
+
+---
+
+## Authentication
+
+The platform uses **JWT access + refresh token** pattern.
+
+### Access Token
+- Stored in `Authorization: Bearer` header or `access_token` cookie
+- Short-lived (default: 15 minutes)
+- Contains: `userId`, `role`, `sessionId`, `type: 'access'`
+
+### Refresh Token
+- Stored in `refresh_token` httpOnly cookie or response body
+- Long-lived (default: 7 days)
+- Stored in Redis at `auth:refresh:{userId}:{sessionId}`
+- On rotation, old token is invalidated
+- **Reuse detection:** If a rotated refresh token is reused, ALL sessions for that user are revoked (defends against token theft)
+
+### Cookies
+| Cookie | Type | Max-Age | Secure |
+|---|---|---|---|
+| `access_token` | httpOnly | 15 min | In production |
+| `refresh_token` | httpOnly | 7 days | In production |
+
+---
+
+## Role-Based Access Control
+
+| Role | Permissions |
+|---|---|
+| **USER** | Manage own profile, add guardians, trigger SOS |
+| **GUARDIAN** | View ward info and location |
+| **POLICE** | View/manage SOS events, device locations, user info |
+| **ADMIN** | Full platform management: users, devices, SOS events, roles |
+| **SUPER_ADMIN** | Same as ADMIN (distinguished for future escalation) |
+
+Authorization is enforced by `RolesGuard` combined with the `@Roles()` decorator.
+
+---
+
+## Project Structure
+
+```
+src/
+├── main.ts                          # Entry point, Swagger setup, global pipes
+├── app.module.ts                    # Root module, global providers
+├── app.controller.ts                # Root endpoint
+├── app.service.ts                   # Root service
+│
+├── config/
+│   ├── database/
+│   │   └── data-source.ts           # TypeORM CLI DataSource (migrations)
+│   └── redis/
+│       ├── redis.module.ts          # Redis module
+│       ├── redis.service.ts         # Redis client wrapper (ioredis)
+│       └── redis-throttler.service.ts  # Redis-backed ThrottlerStorage
+│
+├── decorators/
+│   └── roles.decorators.ts          # @Roles() decorator
+│
+├── types/
+│   └── TokenRelTypes.ts             # Token-related type definitions
+│
+├── utils/
+│   ├── guard/
+│   │   ├── jwt-auth.guard.ts        # JWT authentication guard
+│   │   └── roles.guard.ts           # Role-based authorization guard
+│   ├── strategies/
+│   │   └── jwt.strategy.ts          # Passport JWT strategy
+│   ├── token/
+│   │   ├── token.module.ts          # Token module
+│   │   └── token.service.ts         # JWT generation, rotation, revocation
+│   └── safe-user.ts                 # Strip password_hash utility
+│
+└── feature/
+    ├── admin/                       # Admin panel backend
+    ├── auth/                        # Authentication & password reset
+    ├── device/                      # Device CRUD + entities
+    ├── guardian/                    # Guardian-ward relationships
+    ├── health/                      # Health check
+    ├── mqtt/                        # MQTT client for device ingestion
+    ├── notification/                # SMS + Email notification services
+    ├── police/                      # Police response workflows
+    ├── tracking/                    # Telemetry ingestion + WebSocket gateway
+    └── user/                        # User management
+```
+
+Each feature module follows the same convention:
+
+```
+feature/{name}/
+├── dto/                             # Input validation DTOs
+├── entities/                        # TypeORM entity definitions
+├── {name}.controller.ts             # HTTP endpoints
+├── {name}.module.ts                 # NestJS module definition
+├── {name}.service.ts                # Business logic
+├── {name}.controller.spec.ts        # Controller tests
+└── {name}.service.spec.ts           # Service tests
+```
+
+---
+
+## Deployment
+
+### Docker Build
+
+```bash
+docker build --no-cache -t surakshya-backend .
+```
+
+### Environment
+
+For production (Render, Railway, etc.), set the following env vars:
+
+```bash
+NODE_ENV=production
+PORT=3000
+DATABASE_URL=postgresql://user:pass@host:5432/db?sslmode=require
+REDIS_URL=rediss://:password@host:6379
+JWT_ACCESS_SECRET=<random-64-char-string>
+JWT_REFRESH_SECRET=<different-random-64-char-string>
+RESEND_API_KEY=<resend-api-key>
+RESEND_MAIL_FROM=Surakshya <noreply@your-domain.com>
+TWILIO_ACCOUNT_SID=<twilio-sid>
+TWILIO_AUTH_TOKEN=<twilio-token>
+TWILIO_PHONE_NUMBER=<twilio-number>
+CORS_ORIGIN=https://your-frontend.com
+```
+
+---
+
+## CI/CD
+
+GitHub Actions workflow (`.github/workflows/ci.yml`):
+
+- **Triggers:** Push / PR to `main`
+- **Services:** PostGIS 16 + Redis 7
+- **Matrix:** Node.js 20 and 22
+- **Steps:** `pnpm install --frozen-lockfile` → `pnpm lint` → `pnpm test`
+
+---
+
+## License
+
+Private — internal project.
