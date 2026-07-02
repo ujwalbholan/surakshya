@@ -25,7 +25,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  registe(@Body() registerDto: RegisterDto) {
+  register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
 
@@ -46,11 +46,11 @@ export class AuthController {
     };
   }
 
-  @Post('forget-password')
-  forgetPassword(@Body() dto: ForgotPasswordDto) {
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
     const sanitizedEmail = dto.email.trim().toLowerCase();
 
-    return this.authService.forgetPassword(sanitizedEmail);
+    return this.authService.forgotPassword(sanitizedEmail);
   }
 
   @Post('verify-reset-opt')

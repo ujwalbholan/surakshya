@@ -14,7 +14,6 @@ import { TokenService } from 'src/utils/token/token.service';
 
 @Injectable()
 export class UserService {
-  create: any;
   constructor(
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     private readonly tokenService: TokenService,
@@ -86,12 +85,16 @@ export class UserService {
     return userData;
   }
 
-  findAll(): Promise<User[]> {
-    return this.userRepository.find();
+  async findAll(): Promise<Omit<User, 'password_hash'>[]> {
+    const users = await this.userRepository.find();
+    return users.map(({ password_hash, ...rest }) => rest);
   }
 
-  findOne(id: string) {
-    return this.userRepository.findOneBy({ id });
+  async findOne(id: string): Promise<Partial<User> | null> {
+    const user = await this.userRepository.findOneBy({ id });
+    if (!user) return null;
+    const { password_hash, ...rest } = user;
+    return rest;
   }
 
   async findOneByEmail(email: string): Promise<User | null> {
@@ -102,7 +105,10 @@ export class UserService {
     });
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+  ): Promise<Partial<User> | null> {
     const user = new User();
 
     if (updateUserDto.full_name) user.full_name = updateUserDto.full_name;
@@ -115,7 +121,7 @@ export class UserService {
 
     await this.userRepository.update(id, user);
 
-    return this.userRepository.findOneBy({ id });
+    return this.findOne(id);
   }
 
   async updatePassword(email: string, password: string) {

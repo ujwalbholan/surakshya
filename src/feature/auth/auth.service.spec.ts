@@ -158,7 +158,7 @@ describe('AuthService', () => {
     redisService.set.mockResolvedValue('OK');
     otpEmailService.sendPasswordResetOtp.mockResolvedValue(undefined);
 
-    const result = await service.forgetPassword('ujwal@example.com');
+    const result = await service.forgotPassword('ujwal@example.com');
 
     expect(otpEmailService.sendPasswordResetOtp).toHaveBeenCalledWith(
       'ujwal@example.com',
