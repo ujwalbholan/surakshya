@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { Repository } from 'typeorm';
+import { Repository, Not } from 'typeorm';
 import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
@@ -94,8 +94,12 @@ export class UserService {
     return userData;
   }
 
-  async findAll(): Promise<Omit<User, 'password_hash'>[]> {
-    const users = await this.userRepository.find();
+  async findAll(
+    excludeUserId?: string,
+  ): Promise<Omit<User, 'password_hash'>[]> {
+    const users = excludeUserId
+      ? await this.userRepository.find({ where: { id: Not(excludeUserId) } })
+      : await this.userRepository.find();
     return users.map((user) => safeUser(user));
   }
 

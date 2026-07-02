@@ -54,17 +54,18 @@ describe('UserController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('should return all users', async () => {
+  it('should return all users except self', async () => {
     const users = [
       makeUser(),
       makeUser({ id: 'second-user-id', email: 'ram@gmail.com' }),
     ];
+    const req = { user: { userId } } as unknown as Request;
 
     service.findAll.mockResolvedValue(users);
 
-    const result = await controller.findAll();
+    const result = await controller.findAll(req);
 
-    expect(service.findAll).toHaveBeenCalled();
+    expect(service.findAll).toHaveBeenCalledWith(userId);
     expect(result).toEqual(users);
   });
 
