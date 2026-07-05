@@ -21,7 +21,7 @@ export class SosEvent {
   @Column({ default: 'active' })
   status!: 'active' | 'resolved';
 
-  @Column({ length: 50, nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   eventType?: string | null;
 
   @Column('double precision', { nullable: true })
