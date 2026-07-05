@@ -40,10 +40,10 @@ describe('GuardianController', () => {
     const req = { user: { userId } } as unknown as Request;
     const expected = {
       message: 'Guardian added successfully',
-      guardian: { id: 'g-id' },
+      guardian: { id: 'g-id', full_name: 'Guardian', email: 'g@t.com', phone: '123', role: 'GUARDIAN' },
     };
 
-    service.addGuardian.mockResolvedValue(expected);
+    service.addGuardian.mockResolvedValue(expected as any);
 
     const result = await controller.addGuardian(req, dto);
 
@@ -53,9 +53,9 @@ describe('GuardianController', () => {
 
   it('should get my guardians', async () => {
     const req = { user: { userId } } as unknown as Request;
-    const expected = { guardians: [{ id: 'g-id', full_name: 'Guardian' }] };
+    const expected = { guardians: [{ id: 'g-id', full_name: 'Guardian' }], total: 1, page: 1, limit: 20, totalPages: 1, message: 'Guardians retrieved successfully' };
 
-    service.getMyGuardians.mockResolvedValue(expected);
+    service.getMyGuardians.mockResolvedValue(expected as any);
 
     const result = await controller.getMyGuardians(req, 1, 20);
 

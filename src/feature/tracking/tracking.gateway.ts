@@ -10,7 +10,7 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { LocationUpdatePayload } from './tracking.types';
+import { LocationUpdatePayload, SosEventPayload } from './tracking.types';
 
 @WebSocketGateway({
   namespace: '/tracking',
@@ -64,6 +64,19 @@ export class TrackingGateway
     this.server
       .to(`device:${payload.deviceId}`)
       .emit('location_update', payload);
+  }
+
+  emitSosEvent(payload: SosEventPayload) {
+    this.server.emit('sos_event', payload);
+    if (payload.deviceId) {
+      this.server.to(`device:${payload.deviceId}`).emit('sos_event', payload);
+    }
+  }
+
+  @SubscribeMessage('subscribe_all_sos')
+  handleSubscribeAllSos(@ConnectedSocket() client: Socket) {
+    void client.join('sos_all');
+    return { ok: true };
   }
 
   @SubscribeMessage('subscribe_device')

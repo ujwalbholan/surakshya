@@ -36,8 +36,11 @@ describe('PoliceController', () => {
       activeSosEvents: 5,
       totalDevices: 100,
       totalUsers: 500,
+      sosEventsToday: 3,
+      pingsToday: 1200,
+      resolvedToday: [],
     };
-    service.getDashboard.mockResolvedValue(expected);
+    service.getDashboard.mockResolvedValue(expected as any);
 
     const result = await controller.getDashboard();
 
@@ -45,8 +48,8 @@ describe('PoliceController', () => {
   });
 
   it('should get active SOS events', async () => {
-    const expected = { data: [{ id: 'sos-1' }], total: 1 };
-    service.getActiveSosEvents.mockResolvedValue(expected);
+    const expected = { data: [{ id: 'sos-1', deviceId: 'dev-1', imei: '123', label: 'd', status: 'active', startedAt: new Date() }], total: 1 };
+    service.getActiveSosEvents.mockResolvedValue(expected as any);
 
     const result = await controller.getActiveSosEvents();
 
@@ -54,8 +57,8 @@ describe('PoliceController', () => {
   });
 
   it('should get SOS event details', async () => {
-    const expected = { id: 'sos-1', locationPings: [] };
-    service.getSosEventDetails.mockResolvedValue(expected);
+    const expected = { id: 'sos-1', locationPings: [], device: { id: 'dev-1', imei: '123', label: 'd', isOnline: true }, status: 'active', startedAt: new Date() };
+    service.getSosEventDetails.mockResolvedValue(expected as any);
 
     const result = await controller.getSosEventDetails('sos-1');
 
@@ -63,8 +66,8 @@ describe('PoliceController', () => {
   });
 
   it('should resolve SOS event', async () => {
-    const expected = { id: 'sos-1', status: 'resolved' };
-    service.resolveSosEvent.mockResolvedValue(expected);
+    const expected = { id: 'sos-1', status: 'resolved', device: { id: 'dev-1', imei: '123', label: 'd', isOnline: true }, startedAt: new Date() };
+    service.resolveSosEvent.mockResolvedValue(expected as any);
 
     const result = await controller.resolveSosEvent('sos-1');
 
@@ -72,8 +75,8 @@ describe('PoliceController', () => {
   });
 
   it('should get device latest location', async () => {
-    const expected = { device: { id: 'dev-1' }, lastLocation: null };
-    service.getDeviceLatestLocation.mockResolvedValue(expected);
+    const expected = { device: { id: 'dev-1', imei: '123', label: 'd' }, lastLocation: null };
+    service.getDeviceLatestLocation.mockResolvedValue(expected as any);
 
     const result = await controller.getDeviceLatestLocation('dev-1');
 
@@ -81,8 +84,8 @@ describe('PoliceController', () => {
   });
 
   it('should get user info', async () => {
-    const expected = { id: 'user-1', full_name: 'Test' };
-    service.getUserInfo.mockResolvedValue(expected);
+    const expected = { id: 'user-1', full_name: 'Test', email: 't@t.com', phone: '123', role: 'USER', is_active: true, created_at: new Date(), updated_at: new Date() };
+    service.getUserInfo.mockResolvedValue(expected as any);
 
     const result = await controller.getUserInfo('user-1');
 
@@ -90,8 +93,8 @@ describe('PoliceController', () => {
   });
 
   it('should get user guardians', async () => {
-    const expected = { guardians: [{ id: 'g-1' }] };
-    service.getUserGuardians.mockResolvedValue(expected);
+    const expected = { guardians: [{ id: 'g-1', full_name: 'G', email: 'g@t.com', phone: '123', role: 'GUARDIAN', created_at: new Date() }] };
+    service.getUserGuardians.mockResolvedValue(expected as any);
 
     const result = await controller.getUserGuardians('user-1');
 

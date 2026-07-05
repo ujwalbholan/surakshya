@@ -199,7 +199,7 @@ describe('AdminService', () => {
 
   describe('getDevices', () => {
     it('should return paginated devices', async () => {
-      const devices = [{ id: 'dev-1', imei: '123456', label: 'Device' }];
+      const devices = [{ id: 'dev-1', imei: '123456', label: 'Device', isOnline: true, lastSeenAt: null, user: null }];
       deviceRepo.findAndCount.mockResolvedValue([devices, 1]);
 
       const result = await service.getDevices(1, 20);
@@ -249,12 +249,20 @@ describe('AdminService', () => {
     it('should resolve SOS event', async () => {
       const event = {
         id: 'sos-1',
-        device: { id: 'dev-1' },
+        device: { id: 'dev-1', imei: '123456', label: 'Device', isOnline: true, lastSeenAt: null, user: null },
         status: 'active',
+        eventType: 'sos_started',
+        latitude: null,
+        longitude: null,
+        altitudeM: null,
+        speedKmph: null,
+        satellites: null,
+        resolvedBy: null,
+        notes: null,
         startedAt: new Date(),
         resolvedAt: null,
       };
-      sosRepo.findOneBy.mockResolvedValue(event);
+      sosRepo.findOneBy.mockResolvedValue(event as any);
       sosRepo.save.mockResolvedValue({
         ...event,
         status: 'resolved',
