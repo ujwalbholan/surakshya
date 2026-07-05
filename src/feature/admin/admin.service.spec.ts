@@ -28,6 +28,7 @@ describe('AdminService', () => {
     password_hash: 'hashed',
     role: Role.USER,
     is_active: true,
+    phone_verified: false,
     created_at: new Date(),
     updated_at: new Date(),
     ...overrides,
@@ -199,7 +200,16 @@ describe('AdminService', () => {
 
   describe('getDevices', () => {
     it('should return paginated devices', async () => {
-      const devices = [{ id: 'dev-1', imei: '123456', label: 'Device', isOnline: true, lastSeenAt: null, user: null }];
+      const devices = [
+        {
+          id: 'dev-1',
+          imei: '123456',
+          label: 'Device',
+          isOnline: true,
+          lastSeenAt: null,
+          user: null,
+        },
+      ];
       deviceRepo.findAndCount.mockResolvedValue([devices, 1]);
 
       const result = await service.getDevices(1, 20);
@@ -249,7 +259,14 @@ describe('AdminService', () => {
     it('should resolve SOS event', async () => {
       const event = {
         id: 'sos-1',
-        device: { id: 'dev-1', imei: '123456', label: 'Device', isOnline: true, lastSeenAt: null, user: null },
+        device: {
+          id: 'dev-1',
+          imei: '123456',
+          label: 'Device',
+          isOnline: true,
+          lastSeenAt: null,
+          user: null,
+        },
         status: 'active',
         eventType: 'sos_started',
         latitude: null,

@@ -37,6 +37,7 @@ describe('UserService', () => {
     password_hash: 'hashed-password',
     role: Role.USER,
     is_active: true,
+    phone_verified: false,
     created_at: new Date('2026-01-01T00:00:00.000Z'),
     updated_at: new Date('2026-01-01T00:00:00.000Z'),
     ...overrides,

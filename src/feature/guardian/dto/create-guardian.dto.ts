@@ -24,9 +24,4 @@ export class CreateGuardianDto {
   @ApiProperty({ example: 'guardian@example.com' })
   @IsEmail()
   email!: string;
-
-  @ApiProperty({ example: 'password123' })
-  @IsString()
-  @MinLength(5)
-  password!: string;
 }
