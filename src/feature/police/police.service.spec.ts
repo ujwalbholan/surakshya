@@ -35,6 +35,7 @@ describe('PoliceService', () => {
     password_hash: 'hashed',
     role: Role.USER,
     is_active: true,
+    phone_verified: false,
     created_at: new Date(),
     updated_at: new Date(),
     ...overrides,

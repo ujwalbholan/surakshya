@@ -5,17 +5,23 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from 'src/feature/user/entities/user.entity';
 import { GuardianLink } from './entities/guardian-link.entity';
+import { GuardianRequest } from './entities/guardian-request.entity';
 import { GuardianService } from './guardian.service';
 import { Role } from 'src/feature/auth/dto/auth.dto';
+import { SmsService } from '../notification/sms/sms.service';
+import { RedisService } from 'src/config/redis/redis.service';
+import { EmailService } from '../notification/email.service';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn().mockResolvedValue('hashed-password'),
+  compare: jest.fn().mockResolvedValue(true),
 }));
 
 describe('GuardianService', () => {
   let service: GuardianService;
   let userRepo: jest.Mocked<Repository<User>>;
   let linkRepo: jest.Mocked<Repository<GuardianLink>>;
+  let requestRepo: jest.Mocked<Repository<GuardianRequest>>;
 
   const userId = '550e8400-e29b-41d4-a716-446655440000';
 
@@ -27,6 +33,7 @@ describe('GuardianService', () => {
     password_hash: 'hashed',
     role: Role.USER,
     is_active: true,
+    phone_verified: false,
     created_at: new Date(),
     updated_at: new Date(),
     ...overrides,
@@ -48,6 +55,22 @@ describe('GuardianService', () => {
     ...overrides,
   });
 
+  const mockGuardianRequest = (
+    overrides: Partial<GuardianRequest> = {},
+  ): GuardianRequest => ({
+    id: 'request-id',
+    requester_id: userId,
+    requester_name: 'Test User',
+    target_email: 'guardian@test.com',
+    target_phone: '9800000001',
+    target_name: 'New Guardian',
+    direction: 'CHILD_TO_GUARDIAN',
+    status: 'PENDING',
+    created_at: new Date(),
+    updated_at: new Date(),
+    ...overrides,
+  });
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -59,16 +82,47 @@ describe('GuardianService', () => {
             findOne: jest.fn(),
             save: jest.fn(),
             create: jest.fn(),
+            update: jest.fn(),
           },
         },
         {
           provide: getRepositoryToken(GuardianLink),
           useValue: {
             find: jest.fn(),
+            findOne: jest.fn(),
             findAndCount: jest.fn(),
             save: jest.fn(),
             create: jest.fn(),
           },
+        },
+        {
+          provide: getRepositoryToken(GuardianRequest),
+          useValue: {
+            find: jest.fn(),
+            findOne: jest.fn(),
+            findOneBy: jest.fn(),
+            save: jest.fn(),
+            create: jest.fn(),
+          },
+        },
+        {
+          provide: SmsService,
+          useValue: { send: jest.fn() },
+        },
+        {
+          provide: RedisService,
+          useValue: {
+            set: jest.fn(),
+            get: jest.fn(),
+            del: jest.fn(),
+            getClient: jest.fn().mockReturnValue({
+              scan: jest.fn().mockResolvedValue(['0', []]),
+            }),
+          },
+        },
+        {
+          provide: EmailService,
+          useValue: { send: jest.fn() },
         },
       ],
     }).compile();
@@ -76,6 +130,7 @@ describe('GuardianService', () => {
     service = module.get<GuardianService>(GuardianService);
     userRepo = module.get(getRepositoryToken(User));
     linkRepo = module.get(getRepositoryToken(GuardianLink));
+    requestRepo = module.get(getRepositoryToken(GuardianRequest));
   });
 
   describe('addGuardian', () => {
@@ -83,7 +138,6 @@ describe('GuardianService', () => {
       full_name: 'New Guardian',
       email: 'guardian@test.com',
       phone: '9800000001',
-      password: 'password123',
     };
 
     it('should throw if child user is not found or not USER role', async () => {
@@ -104,14 +158,9 @@ describe('GuardianService', () => {
       await expect(service.addGuardian(userId, dto)).rejects.toThrow(
         BadRequestException,
       );
-
-      userRepo.findOne.mockResolvedValue(mockUser({ phone: dto.phone }));
-      await expect(service.addGuardian(userId, dto)).rejects.toThrow(
-        BadRequestException,
-      );
     });
 
-    it('should create guardian and link successfully', async () => {
+    it('should create guardian user and request successfully', async () => {
       userRepo.findOneBy.mockResolvedValue(mockUser());
       userRepo.findOne.mockResolvedValue(null);
       const guardianUser = mockUser({
@@ -121,14 +170,14 @@ describe('GuardianService', () => {
       });
       userRepo.create.mockReturnValue(guardianUser);
       userRepo.save.mockResolvedValue(guardianUser);
-      linkRepo.create.mockReturnValue(mockGuardianLink());
-      linkRepo.save.mockResolvedValue(mockGuardianLink());
+      requestRepo.create.mockReturnValue(mockGuardianRequest());
+      requestRepo.save.mockResolvedValue(mockGuardianRequest());
 
       const result = await service.addGuardian(userId, dto);
 
-      expect(result.message).toBe('Guardian added successfully');
+      expect(result.message).toContain('Guardian request sent');
       expect(userRepo.save).toHaveBeenCalled();
-      expect(linkRepo.save).toHaveBeenCalled();
+      expect(requestRepo.save).toHaveBeenCalled();
     });
   });
 
@@ -162,6 +211,24 @@ describe('GuardianService', () => {
       expect(result.wards).toHaveLength(1);
       expect(result.total).toBe(1);
       expect(result.wards[0].full_name).toBe('Test User');
+    });
+  });
+
+  describe('acceptRequest', () => {
+    it('should throw if request not found', async () => {
+      requestRepo.findOneBy.mockResolvedValue(null);
+      await expect(
+        service.acceptRequest('invalid-id', 'guardian-id'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw if request already processed', async () => {
+      requestRepo.findOneBy.mockResolvedValue(
+        mockGuardianRequest({ status: 'ACCEPTED' }),
+      );
+      await expect(
+        service.acceptRequest('request-id', 'guardian-id'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });
