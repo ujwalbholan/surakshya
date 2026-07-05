@@ -45,7 +45,7 @@ describe('TrackingService', () => {
         TrackingService,
         {
           provide: getRepositoryToken(Device),
-          useValue: { findOne: jest.fn(), create: jest.fn(), save: jest.fn() },
+          useValue: { findOne: jest.fn(), create: jest.fn(), save: jest.fn(), update: jest.fn() },
         },
         {
           provide: getRepositoryToken(LocationPing),

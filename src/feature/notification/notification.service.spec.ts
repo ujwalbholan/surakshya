@@ -1,7 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotificationService } from './notification.service';
 import { SmsService } from './sms/sms.service';
 import { EmailService } from './email.service';
+import { NotificationFailure } from './entities/notification-failure.entity';
 
 describe('NotificationService', () => {
   let service: NotificationService;
@@ -17,6 +19,10 @@ describe('NotificationService', () => {
         {
           provide: EmailService,
           useValue: { send: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(NotificationFailure),
+          useValue: { save: jest.fn(), createQueryBuilder: jest.fn(), count: jest.fn() },
         },
       ],
     }).compile();
