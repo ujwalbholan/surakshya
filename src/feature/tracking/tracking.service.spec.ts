@@ -5,6 +5,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Device } from '../device/entities/device.entity';
 import { LocationPing } from '../device/entities/location-ping.entity';
+import { SosEvent } from '../device/entities/sos-event.entity';
 import { TrackingService } from './tracking.service';
 import { TrackingGateway } from './tracking.gateway';
 
@@ -14,7 +15,14 @@ describe('TrackingService', () => {
   let pingRepo: jest.Mocked<Repository<LocationPing>>;
   let gateway: jest.Mocked<TrackingGateway>;
 
-  const mockDevice: Device = { id: 'dev-1', imei: 'IMEI123', label: 'IMEI123' };
+  const mockDevice: Device = {
+    id: 'dev-1',
+    imei: 'IMEI123',
+    label: 'IMEI123',
+    isOnline: true,
+    lastSeenAt: new Date(),
+    user: undefined,
+  };
   const now = new Date();
 
   const makePing = (overrides: Partial<LocationPing> = {}): LocationPing => ({
@@ -23,10 +31,10 @@ describe('TrackingService', () => {
     sosEvent: null,
     latitude: 27.7,
     longitude: 85.33,
-    altitudeM: null,
-    speedKmph: null,
-    satellites: null,
-    hdop: null,
+    altitudeM: undefined,
+    speedKmph: undefined,
+    satellites: undefined,
+    hdop: undefined,
     recordedAt: now,
     ...overrides,
   });
@@ -37,15 +45,19 @@ describe('TrackingService', () => {
         TrackingService,
         {
           provide: getRepositoryToken(Device),
-          useValue: { findOne: jest.fn(), create: jest.fn(), save: jest.fn() },
+          useValue: { findOne: jest.fn(), create: jest.fn(), save: jest.fn(), update: jest.fn() },
         },
         {
           provide: getRepositoryToken(LocationPing),
           useValue: { create: jest.fn(), save: jest.fn() },
         },
         {
+          provide: getRepositoryToken(SosEvent),
+          useValue: { findOne: jest.fn(), create: jest.fn(), save: jest.fn() },
+        },
+        {
           provide: TrackingGateway,
-          useValue: { emitLocationUpdate: jest.fn() },
+          useValue: { emitLocationUpdate: jest.fn(), emitSosEvent: jest.fn() },
         },
       ],
     }).compile();
@@ -81,6 +93,7 @@ describe('TrackingService', () => {
         deviceId: 'IMEI123',
         latitude: 27.7,
         longitude: 85.33,
+        nmeaSentences: [],
       });
 
       expect(deviceRepo.findOne).toHaveBeenCalledWith({
@@ -105,6 +118,7 @@ describe('TrackingService', () => {
         longitude: 85.33,
         altitudeM: 1400,
         speedKmph: 30,
+        nmeaSentences: [],
       });
 
       expect(result?.latitude).toBe(27.7);

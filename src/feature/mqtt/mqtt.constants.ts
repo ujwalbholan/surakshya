@@ -4,6 +4,6 @@ export const MQTT_BROKER_URL =
 // Subscribe to all devices, or a specific one
 export const MQTT_TOPICS = [
   'device/+/telemetry', // e.g. device/wearable-001/telemetry
-  'device/+', // e.g. device/wearable-001 (your current topic)
-  'wearable-+/status', // adjust to match your firmware
+  'device/+', // e.g. device/wearable-001
+  'surakshawatch/+/events', // SOS events
 ];

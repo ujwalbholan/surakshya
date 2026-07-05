@@ -18,6 +18,7 @@ import { GuardianModule } from './feature/guardian/guardian.module';
 import { AdminModule } from './feature/admin/admin.module';
 import { PoliceModule } from './feature/police/police.module';
 import { MqttModule } from './feature/mqtt/mqtt.module';
+import { EmergencyModule } from './feature/emergency/emergency.module';
 import { HealthModule } from './feature/health/health.module';
 import { RedisModule } from './config/redis/redis.module';
 import { RedisThrottlerStorage } from './config/redis/redis-throttler.service';
@@ -75,6 +76,7 @@ const isProduction = process.env.NODE_ENV === 'production';
     PoliceModule,
     GuardianModule,
     MqttModule,
+    EmergencyModule,
   ],
   controllers: [AppController],
   providers: [

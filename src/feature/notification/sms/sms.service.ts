@@ -38,6 +38,7 @@ export class SmsService {
       const reason =
         error instanceof Error ? error.message : 'Unknown Twilio error';
       this.logger.error(`Failed to send SMS to ${phone}: ${reason}`);
+      throw error;
     }
   }
 }
