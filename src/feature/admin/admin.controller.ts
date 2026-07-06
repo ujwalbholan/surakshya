@@ -104,8 +104,10 @@ export class AdminController {
 
   @ApiOperation({ summary: 'Create a new admin user' })
   @Post('create-admin')
-  createAdmin(@Body() dto: CreateAdminDto) {
-    return this.adminService.createAdmin(dto);
+  async createAdmin(@Body() dto: CreateAdminDto) {
+    const result = await this.adminService.createAdmin(dto);
+    if (result instanceof Error) throw result;
+    return result;
   }
 
   @ApiOperation({ summary: 'List all devices (paginated)' })

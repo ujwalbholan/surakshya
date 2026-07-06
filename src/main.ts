@@ -14,12 +14,7 @@ async function bootstrap() {
 
   app.use(json());
   app.use(
-    (
-      err: SyntaxError,
-      _req: Request,
-      res: Response,
-      next: NextFunction,
-    ) => {
+    (err: SyntaxError, _req: Request, res: Response, next: NextFunction) => {
       if (err instanceof SyntaxError && 'body' in err) {
         res.status(400).json({
           statusCode: 400,
