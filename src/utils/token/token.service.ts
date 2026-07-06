@@ -28,7 +28,7 @@ export class TokenService {
         email: user.email,
         full_name: user.full_name,
         sessionId,
-        role: user.role,
+        roles: user.roles,
         type: 'access',
       },
       {
@@ -43,7 +43,7 @@ export class TokenService {
         email: user.email,
         full_name: user.full_name,
         sessionId,
-        role: user.role,
+        roles: user.roles,
         type: 'refresh',
       },
       {
@@ -126,7 +126,7 @@ export class TokenService {
       id: payload.sub,
       email: payload.email,
       full_name: payload.full_name,
-      role: payload.role,
+      roles: payload.roles,
     });
   }
 }

@@ -8,7 +8,7 @@ import { LocationPing } from 'src/feature/device/entities/location-ping.entity';
 import { SosEvent } from 'src/feature/device/entities/sos-event.entity';
 import { GuardianLink } from 'src/feature/guardian/entities/guardian-link.entity';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
-import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { UpdateUserRolesDto } from './dto/update-user-role.dto';
 
 @Injectable()
 export class AdminService {
@@ -34,12 +34,10 @@ export class AdminService {
         this.sosRepo.count({ where: { status: 'active' } }),
       ]);
 
-    const usersByRole = await this.userRepo
-      .createQueryBuilder('user')
-      .select('user.role', 'role')
-      .addSelect('COUNT(*)', 'count')
-      .groupBy('user.role')
-      .getRawMany();
+    const usersByRole: { role: string; count: string }[] =
+      await this.userRepo.query(
+        `SELECT unnest(roles) AS role, COUNT(*) AS count FROM users GROUP BY role`,
+      );
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -60,7 +58,7 @@ export class AdminService {
       totalDevices,
       totalPings,
       activeSosEvents,
-      usersByRole: usersByRole.map((r: { role: string; count: string }) => ({
+      usersByRole: usersByRole.map((r) => ({
         role: r.role,
         count: Number(r.count),
       })),
@@ -87,7 +85,7 @@ export class AdminService {
     }
 
     if (options.role) {
-      query.andWhere('user.role = :role', { role: options.role });
+      query.andWhere(':role = ANY(user.roles)', { role: options.role });
     }
 
     if (options.is_active !== undefined) {
@@ -143,14 +141,14 @@ export class AdminService {
           full_name: link.child.full_name,
           email: link.child.email,
           phone: link.child.phone,
-          role: link.child.role,
+          roles: link.child.roles,
         },
         guardian: {
           id: link.guardian.id,
           full_name: link.guardian.full_name,
           email: link.guardian.email,
           phone: link.guardian.phone,
-          role: link.guardian.role,
+          roles: link.guardian.roles,
         },
         created_at: link.created_at,
       })),
@@ -166,11 +164,11 @@ export class AdminService {
     return safeUser(user);
   }
 
-  async updateUserRole(id: string, dto: UpdateUserRoleDto) {
+  async updateUserRoles(id: string, dto: UpdateUserRolesDto) {
     const user = await this.userRepo.findOneBy({ id });
     if (!user) throw new NotFoundException('User not found');
 
-    user.role = dto.role;
+    user.roles = dto.roles;
     await this.userRepo.save(user);
     return safeUser(user);
   }

@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   CanActivate,
@@ -9,6 +6,10 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from 'src/decorators/roles.decorators';
+
+interface RequestWithUser {
+  user?: { roles?: string[] };
+}
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -24,14 +25,17 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
     const user = request.user;
 
     if (!user) {
       throw new ForbiddenException('User not authenticated');
     }
 
-    if (!requiredRoles.includes(user.role)) {
+    const userRoles: string[] = user.roles ?? [];
+    const hasRole = requiredRoles.some((r) => userRoles.includes(r));
+
+    if (!hasRole) {
       throw new ForbiddenException('You do not have permission');
     }
 

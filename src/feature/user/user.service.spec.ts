@@ -35,9 +35,10 @@ describe('UserService', () => {
     email: 'ujwal@gmail.com',
     phone: '9800000000',
     password_hash: 'hashed-password',
-    role: Role.USER,
+    roles: [Role.USER],
     is_active: true,
     phone_verified: false,
+    station_id: null,
     created_at: new Date('2026-01-01T00:00:00.000Z'),
     updated_at: new Date('2026-01-01T00:00:00.000Z'),
     ...overrides,
@@ -76,7 +77,6 @@ describe('UserService', () => {
         email: 'ujwal@gmail.com',
         phone: '9800000000',
         password: 'password',
-        role: Role.USER,
       };
       const createdUser = makeUser();
       const savedUser = makeUser();
@@ -95,7 +95,6 @@ describe('UserService', () => {
           full_name: dto.full_name,
           email: dto.email,
           phone: dto.phone,
-          role: dto.role,
         }),
       );
       expect(repository.save).toHaveBeenCalledWith(createdUser);
@@ -129,7 +128,7 @@ describe('UserService', () => {
         id: user.id,
         email: user.email,
         full_name: user.full_name,
-        role: user.role,
+        roles: user.roles,
       });
       expect(result).toEqual({
         message: 'Login Successfull',
@@ -138,7 +137,7 @@ describe('UserService', () => {
           full_name: user.full_name,
           email: user.email,
           phone: user.phone,
-          role: user.role,
+          roles: user.roles,
         },
         ...tokens,
       });

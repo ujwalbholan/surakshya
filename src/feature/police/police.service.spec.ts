@@ -9,6 +9,9 @@ import { SosEvent } from 'src/feature/device/entities/sos-event.entity';
 import { GuardianLink } from 'src/feature/guardian/entities/guardian-link.entity';
 import { PoliceService } from './police.service';
 import { Role } from 'src/feature/auth/dto/auth.dto';
+import { RedisService } from 'src/config/redis/redis.service';
+import { EmailService } from 'src/feature/notification/email.service';
+import { SmsService } from 'src/feature/notification/sms/sms.service';
 
 describe('PoliceService', () => {
   let service: PoliceService;
@@ -33,9 +36,10 @@ describe('PoliceService', () => {
     email: 'user@test.com',
     phone: '9800000000',
     password_hash: 'hashed',
-    role: Role.USER,
+    roles: [Role.USER],
     is_active: true,
     phone_verified: false,
+    station_id: null,
     created_at: new Date(),
     updated_at: new Date(),
     ...overrides,
@@ -53,6 +57,8 @@ describe('PoliceService', () => {
     satellites: null,
     resolvedBy: null,
     notes: null,
+    assigned_station_id: null,
+    assigned_station_name: null,
     startedAt: new Date(),
     resolvedAt: null,
     ...overrides,
@@ -101,6 +107,18 @@ describe('PoliceService', () => {
         {
           provide: getRepositoryToken(GuardianLink),
           useValue: { find: jest.fn() },
+        },
+        {
+          provide: RedisService,
+          useValue: { set: jest.fn(), get: jest.fn(), del: jest.fn() },
+        },
+        {
+          provide: EmailService,
+          useValue: { send: jest.fn() },
+        },
+        {
+          provide: SmsService,
+          useValue: { send: jest.fn() },
         },
       ],
     }).compile();
@@ -176,7 +194,7 @@ describe('PoliceService', () => {
 
   describe('resolveSosEvent', () => {
     it('should throw if event not found', async () => {
-      sosRepo.findOneBy.mockResolvedValue(null);
+      sosRepo.findOne.mockResolvedValue(null);
       await expect(service.resolveSosEvent('bad-id')).rejects.toThrow(
         NotFoundException,
       );
@@ -184,10 +202,11 @@ describe('PoliceService', () => {
 
     it('should resolve the event', async () => {
       const event = mockSosEvent();
-      sosRepo.findOneBy.mockResolvedValue(event);
+      sosRepo.findOne.mockResolvedValue(event);
+      userRepo.findOneBy.mockResolvedValue(mockUser());
       sosRepo.save.mockResolvedValue({ ...event, status: 'resolved' });
 
-      const result = await service.resolveSosEvent('sos-1');
+      const result = await service.resolveSosEvent('sos-1', 'user-1');
 
       expect(result.status).toBe('resolved');
       expect(result.resolvedAt).toBeDefined();
@@ -241,7 +260,7 @@ describe('PoliceService', () => {
         guardian: mockUser({
           id: 'guardian-1',
           full_name: 'Guardian',
-          role: Role.GUARDIAN,
+          roles: [Role.GUARDIAN],
         }),
         created_at: new Date(),
       };

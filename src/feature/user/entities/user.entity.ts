@@ -6,11 +6,9 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Role } from 'src/feature/auth/dto/auth.dto';
 
 @Entity('users')
 @Index('idx_users_phone', ['phone'])
-@Index('idx_users_role', ['role'])
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -27,19 +25,17 @@ export class User {
   @Column({ type: 'text', nullable: true })
   password_hash: string;
 
-  @Column({
-    type: 'enum',
-    enum: Role,
-    enumName: 'user_role',
-    default: Role.USER,
-  })
-  role: Role;
+  @Column('text', { array: true, default: ['USER'] })
+  roles: string[];
 
   @Column({ default: true })
   is_active: boolean;
 
   @Column({ default: false })
   phone_verified: boolean;
+
+  @Column({ type: 'uuid', nullable: true })
+  station_id: string | null;
 
   @CreateDateColumn()
   created_at: Date;

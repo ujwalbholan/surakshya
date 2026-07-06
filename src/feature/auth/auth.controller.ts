@@ -124,7 +124,7 @@ export class AuthController {
     const user = req.user as {
       userId: string;
       sessionId: string;
-      role: string;
+      roles: string[];
     };
 
     await this.authService.logout(user.userId, user.sessionId);

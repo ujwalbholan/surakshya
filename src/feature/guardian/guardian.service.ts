@@ -12,6 +12,9 @@ import { randomBytes, randomInt } from 'node:crypto';
 import { User } from 'src/feature/user/entities/user.entity';
 import { GuardianLink } from './entities/guardian-link.entity';
 import { GuardianRequest } from './entities/guardian-request.entity';
+import { Device } from '../device/entities/device.entity';
+import { LocationPing } from '../device/entities/location-ping.entity';
+import { SosEvent } from '../device/entities/sos-event.entity';
 
 import { CreateGuardianDto } from './dto/create-guardian.dto';
 import { AddWardDto } from './dto/add-ward.dto';
@@ -31,6 +34,12 @@ export class GuardianService {
     private readonly guardianLinkRepository: Repository<GuardianLink>,
     @InjectRepository(GuardianRequest)
     private readonly guardianRequestRepository: Repository<GuardianRequest>,
+    @InjectRepository(Device)
+    private readonly deviceRepository: Repository<Device>,
+    @InjectRepository(LocationPing)
+    private readonly pingRepository: Repository<LocationPing>,
+    @InjectRepository(SosEvent)
+    private readonly sosRepository: Repository<SosEvent>,
     private readonly smsService: SmsService,
     private readonly redisService: RedisService,
     private readonly emailService: EmailService,
@@ -39,7 +48,7 @@ export class GuardianService {
   async addGuardian(childUserId: string, dto: CreateGuardianDto) {
     const child = await this.userRepository.findOneBy({ id: childUserId });
 
-    if (!child || child.role !== Role.USER) {
+    if (!child || !child.roles.includes(Role.USER)) {
       throw new BadRequestException('Only users can add guardians');
     }
 
@@ -71,7 +80,7 @@ export class GuardianService {
         email,
         phone,
         password_hash: passwordHash,
-        role: Role.GUARDIAN,
+        roles: [Role.GUARDIAN],
         is_active: true,
         phone_verified: false,
       }),
@@ -111,7 +120,7 @@ export class GuardianService {
       id: guardianUserId,
     });
 
-    if (!guardian || guardian.role !== Role.GUARDIAN) {
+    if (!guardian || !guardian.roles.includes(Role.GUARDIAN)) {
       throw new BadRequestException('Only guardians can add wards');
     }
 
@@ -123,7 +132,7 @@ export class GuardianService {
       throw new BadRequestException('No user found with this email');
     }
 
-    if (child.role !== Role.USER) {
+    if (!child.roles.includes(Role.USER)) {
       throw new BadRequestException('This email belongs to a non-user account');
     }
 
@@ -172,8 +181,8 @@ export class GuardianService {
     };
   }
 
-  async getMyRequests(userId: string, role: Role) {
-    if (role === Role.GUARDIAN) {
+  async getMyRequests(userId: string, roles: string[]) {
+    if (roles.includes(Role.GUARDIAN)) {
       const user = await this.userRepository.findOneBy({ id: userId });
       if (!user) throw new NotFoundException('User not found');
 
@@ -199,7 +208,7 @@ export class GuardianService {
       };
     }
 
-    if (role === Role.USER) {
+    if (roles.includes(Role.USER)) {
       const requests = await this.guardianRequestRepository.find({
         where: {
           requester_id: userId,
@@ -241,7 +250,7 @@ export class GuardianService {
     if (request.direction === 'CHILD_TO_GUARDIAN') {
       const guardian = await this.userRepository.findOneBy({ id: userId });
 
-      if (!guardian || guardian.role !== Role.GUARDIAN) {
+      if (!guardian || !guardian.roles.includes(Role.GUARDIAN)) {
         throw new BadRequestException('Only guardians can accept this request');
       }
 
@@ -341,7 +350,7 @@ export class GuardianService {
     if (request.direction === 'CHILD_TO_GUARDIAN') {
       const guardian = await this.userRepository.findOneBy({ id: userId });
 
-      if (!guardian || guardian.role !== Role.GUARDIAN) {
+      if (!guardian || !guardian.roles.includes(Role.GUARDIAN)) {
         throw new BadRequestException('Only guardians can reject this request');
       }
 
@@ -368,10 +377,10 @@ export class GuardianService {
 
   async sendOtp(email: string) {
     const user = await this.userRepository.findOne({
-      where: { email, role: Role.GUARDIAN },
+      where: { email },
     });
 
-    if (!user) {
+    if (!user || !user.roles.includes(Role.GUARDIAN)) {
       throw new NotFoundException('No guardian found with this email');
     }
 
@@ -410,10 +419,10 @@ export class GuardianService {
 
   async setPassword(email: string, oldPassword: string, newPassword: string) {
     const user = await this.userRepository.findOne({
-      where: { email, role: Role.GUARDIAN },
+      where: { email },
     });
 
-    if (!user) {
+    if (!user || !user.roles.includes(Role.GUARDIAN)) {
       throw new NotFoundException('No guardian found with this email');
     }
 
@@ -558,13 +567,123 @@ export class GuardianService {
     return trimmed.startsWith('+977') ? trimmed.slice(4) : trimmed;
   }
 
+  async getWardLocation(guardianUserId: string, wardId: string) {
+    await this.verifyGuardianWardLink(guardianUserId, wardId);
+
+    const device = await this.deviceRepository.findOne({
+      where: { user: { id: wardId } },
+    });
+
+    if (!device) {
+      return { location: null, message: 'Ward has no claimed device' };
+    }
+
+    const latest = await this.pingRepository.findOne({
+      where: { device: { id: device.id } },
+      order: { recordedAt: 'DESC' },
+    });
+
+    return {
+      wardId,
+      deviceId: device.id,
+      imei: device.imei,
+      location: latest
+        ? {
+            latitude: latest.latitude,
+            longitude: latest.longitude,
+            altitudeM: latest.altitudeM,
+            speedKmph: latest.speedKmph,
+            recordedAt: latest.recordedAt,
+          }
+        : null,
+    };
+  }
+
+  async getWardLocationHistory(guardianUserId: string, wardId: string) {
+    await this.verifyGuardianWardLink(guardianUserId, wardId);
+
+    const device = await this.deviceRepository.findOne({
+      where: { user: { id: wardId } },
+    });
+
+    if (!device) {
+      return { pings: [], message: 'Ward has no claimed device' };
+    }
+
+    const pings = await this.pingRepository.find({
+      where: { device: { id: device.id } },
+      order: { recordedAt: 'DESC' },
+      take: 100,
+    });
+
+    return {
+      wardId,
+      deviceId: device.id,
+      pings: pings.map((p) => ({
+        latitude: p.latitude,
+        longitude: p.longitude,
+        altitudeM: p.altitudeM,
+        speedKmph: p.speedKmph,
+        recordedAt: p.recordedAt,
+      })),
+    };
+  }
+
+  async getWardSosEvents(guardianUserId: string, wardId: string) {
+    await this.verifyGuardianWardLink(guardianUserId, wardId);
+
+    const device = await this.deviceRepository.findOne({
+      where: { user: { id: wardId } },
+    });
+
+    if (!device) {
+      return { sosEvents: [], message: 'Ward has no claimed device' };
+    }
+
+    const events = await this.sosRepository.find({
+      where: { device: { id: device.id } },
+      order: { startedAt: 'DESC' },
+      relations: ['device'],
+      take: 20,
+    });
+
+    return {
+      wardId,
+      sosEvents: events.map((e) => ({
+        id: e.id,
+        status: e.status,
+        eventType: e.eventType,
+        latitude: e.latitude,
+        longitude: e.longitude,
+        startedAt: e.startedAt,
+        resolvedAt: e.resolvedAt,
+        assigned_station_id: e.assigned_station_id,
+        assigned_station_name: e.assigned_station_name,
+        notes: e.notes,
+      })),
+    };
+  }
+
+  private async verifyGuardianWardLink(guardianUserId: string, wardId: string) {
+    const link = await this.guardianLinkRepository.findOne({
+      where: {
+        guardian_user_id: guardianUserId,
+        child_user_id: wardId,
+      },
+    });
+
+    if (!link) {
+      throw new NotFoundException('No guardian-ward link found');
+    }
+  }
+
   private toPublicUser(user: User) {
     return {
       id: user.id,
       full_name: user.full_name,
       email: user.email,
       phone: user.phone,
-      role: user.role,
+      roles: user.roles,
     };
   }
 }

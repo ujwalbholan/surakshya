@@ -17,6 +17,7 @@ import { NotificationModule } from './feature/notification/notification.module';
 import { GuardianModule } from './feature/guardian/guardian.module';
 import { AdminModule } from './feature/admin/admin.module';
 import { PoliceModule } from './feature/police/police.module';
+import { PoliceStationModule } from './feature/police-station/police-station.module';
 import { MqttModule } from './feature/mqtt/mqtt.module';
 import { EmergencyModule } from './feature/emergency/emergency.module';
 import { HealthModule } from './feature/health/health.module';
@@ -77,6 +78,7 @@ const isProduction = process.env.NODE_ENV === 'production';
     GuardianModule,
     MqttModule,
     EmergencyModule,
+    PoliceStationModule,
   ],
   controllers: [AppController],
   providers: [

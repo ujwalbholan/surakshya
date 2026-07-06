@@ -21,7 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
-import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { UpdateUserRolesDto } from './dto/update-user-role.dto';
 import { JwtAuthGuard } from 'src/utils/guard/jwt-auth.guard';
 import { RolesGuard } from 'src/utils/guard/roles.guard';
 import { Roles } from 'src/decorators/roles.decorators';
@@ -85,14 +85,14 @@ export class AdminController {
     return this.adminService.updateUserStatus(id, dto);
   }
 
-  @ApiOperation({ summary: 'Update user role' })
+  @ApiOperation({ summary: 'Update user roles' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
-  @Patch('users/:id/role')
-  updateUserRole(
+  @Patch('users/:id/roles')
+  updateUserRoles(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateUserRoleDto,
+    @Body() dto: UpdateUserRolesDto,
   ) {
-    return this.adminService.updateUserRole(id, dto);
+    return this.adminService.updateUserRoles(id, dto);
   }
 
   @ApiOperation({ summary: 'List all devices (paginated)' })

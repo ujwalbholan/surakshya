@@ -46,6 +46,12 @@ export class SosEvent {
   @Column({ type: 'text', nullable: true })
   notes?: string | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  assigned_station_id?: string | null;
+
+  @Column({ length: 200, nullable: true })
+  assigned_station_name?: string | null;
+
   @CreateDateColumn()
   startedAt!: Date;
 
