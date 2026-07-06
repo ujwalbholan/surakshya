@@ -41,13 +41,22 @@ export class EmailService {
       process.env.MAIL_PASSWORD &&
       process.env.MAIL_FROM
     ) {
+      const port = Number(process.env.MAIL_PORT);
+      const secure =
+        process.env.MAIL_SECURE !== undefined
+          ? process.env.MAIL_SECURE === 'true'
+          : port === 465;
+
+      if (port === 587 && secure) {
+        this.logger.warn(
+          'MAIL_SECURE=true with MAIL_PORT=587 is incorrect — port 587 uses STARTTLS (secure: false). Email may fail.',
+        );
+      }
+
       this.transporter = nodemailer.createTransport({
         host: process.env.MAIL_HOST,
-        port: Number(process.env.MAIL_PORT),
-        secure:
-          process.env.MAIL_SECURE !== undefined
-            ? process.env.MAIL_SECURE === 'true'
-            : Number(process.env.MAIL_PORT) === 465,
+        port,
+        secure,
         connectionTimeout: 10_000,
         greetingTimeout: 10_000,
         socketTimeout: 15_000,
@@ -71,29 +80,36 @@ export class EmailService {
       throw new ServiceUnavailableException('Email service is unavailable');
     }
 
-    try {
-      if (this.transporter) {
+    const lastError: unknown[] = [];
+
+    if (this.transporter) {
+      try {
         await this.transporter.sendMail({ ...message, from: this.from });
         return;
+      } catch (error) {
+        lastError.push(error);
+        this.logger.warn(
+          `Nodemailer failed, trying fallback: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
       }
+    }
 
-      if (this.resendApiKey) {
+    if (this.resendApiKey) {
+      try {
         await this.sendWithResend(message);
         return;
+      } catch (error) {
+        lastError.push(error);
       }
-
-      throw new ServiceUnavailableException('No email provider is configured');
-    } catch (error) {
-      if (error instanceof ServiceUnavailableException) {
-        throw error;
-      }
-
-      const reason =
-        error instanceof Error ? error.message : 'Unknown mail provider error';
-
-      this.logger.error(`Email delivery failed: ${reason}`);
-      throw new ServiceUnavailableException('Email service is unavailable');
     }
+
+    if (lastError.length > 0) {
+      this.logger.error(
+        `All email providers failed. Last error: ${lastError[lastError.length - 1] instanceof Error ? (lastError[lastError.length - 1] as Error).message : 'Unknown'}`,
+      );
+    }
+
+    throw new ServiceUnavailableException('Email service is unavailable');
   }
 
   private async sendWithResend(message: EmailMessage): Promise<void> {
