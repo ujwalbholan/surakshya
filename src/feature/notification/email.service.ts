@@ -30,37 +30,36 @@ export class EmailService {
           'Resend is disabled because RESEND_MAIL_FROM is missing',
         );
       }
-
-      return;
     }
 
-    this.from = process.env.MAIL_FROM;
+    this.from ??= process.env.MAIL_FROM;
 
     if (
-      !process.env.MAIL_HOST ||
-      !process.env.MAIL_PORT ||
-      !process.env.MAIL_USER ||
-      !process.env.MAIL_PASSWORD ||
-      !process.env.MAIL_FROM
+      process.env.MAIL_HOST &&
+      process.env.MAIL_PORT &&
+      process.env.MAIL_USER &&
+      process.env.MAIL_PASSWORD &&
+      process.env.MAIL_FROM
     ) {
-      this.logger.warn(
-        'Mail is disabled because one or more MAIL_* variables are missing',
-      );
-      return;
+      this.transporter = nodemailer.createTransport({
+        host: process.env.MAIL_HOST,
+        port: Number(process.env.MAIL_PORT),
+        secure: process.env.MAIL_SECURE === 'true',
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 15_000,
+        auth: {
+          user: process.env.MAIL_USER,
+          pass: process.env.MAIL_PASSWORD,
+        },
+      });
     }
 
-    this.transporter = nodemailer.createTransport({
-      host: process.env.MAIL_HOST,
-      port: Number(process.env.MAIL_PORT),
-      secure: process.env.MAIL_SECURE === 'true',
-      connectionTimeout: 10_000,
-      greetingTimeout: 10_000,
-      socketTimeout: 15_000,
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASSWORD,
-      },
-    });
+    if (!this.from) {
+      this.logger.warn(
+        'Mail is disabled: no MAIL_FROM or RESEND_MAIL_FROM configured',
+      );
+    }
   }
 
   async send(message: EmailMessage): Promise<void> {
@@ -70,18 +69,17 @@ export class EmailService {
     }
 
     try {
+      if (this.transporter) {
+        await this.transporter.sendMail({ ...message, from: this.from });
+        return;
+      }
+
       if (this.resendApiKey) {
         await this.sendWithResend(message);
         return;
       }
 
-      if (!this.transporter) {
-        throw new ServiceUnavailableException(
-          'No email provider is configured',
-        );
-      }
-
-      await this.transporter.sendMail({ ...message, from: this.from });
+      throw new ServiceUnavailableException('No email provider is configured');
     } catch (error) {
       if (error instanceof ServiceUnavailableException) {
         throw error;

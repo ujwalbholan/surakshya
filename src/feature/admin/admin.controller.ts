@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Param,
   Patch,
   Body,
@@ -22,6 +23,7 @@ import {
 import { AdminService } from './admin.service';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { UpdateUserRolesDto } from './dto/update-user-role.dto';
+import { CreateAdminDto } from './dto/create-admin.dto';
 import { JwtAuthGuard } from 'src/utils/guard/jwt-auth.guard';
 import { RolesGuard } from 'src/utils/guard/roles.guard';
 import { Roles } from 'src/decorators/roles.decorators';
@@ -98,6 +100,12 @@ export class AdminController {
   ) {
     const actor = req.user as { roles: string[] };
     return await this.adminService.updateUserRoles(id, dto, actor.roles);
+  }
+
+  @ApiOperation({ summary: 'Create a new admin user' })
+  @Post('create-admin')
+  createAdmin(@Body() dto: CreateAdminDto) {
+    return this.adminService.createAdmin(dto);
   }
 
   @ApiOperation({ summary: 'List all devices (paginated)' })
