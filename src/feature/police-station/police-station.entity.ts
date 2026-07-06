@@ -20,12 +20,6 @@ export class PoliceStation {
   @Column({ length: 30 })
   contact_number: string;
 
-  @Column('double precision', { nullable: true })
-  latitude: number | null;
-
-  @Column('double precision', { nullable: true })
-  longitude: number | null;
-
   @Column({ default: true })
   is_active: boolean;
 
