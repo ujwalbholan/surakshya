@@ -5,6 +5,7 @@ import { Device } from 'src/feature/device/entities/device.entity';
 import { LocationPing } from 'src/feature/device/entities/location-ping.entity';
 import { SosEvent } from 'src/feature/device/entities/sos-event.entity';
 import { GuardianLink } from 'src/feature/guardian/entities/guardian-link.entity';
+import { NotificationModule } from 'src/feature/notification/notification.module';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 
@@ -17,6 +18,7 @@ import { AdminService } from './admin.service';
       SosEvent,
       GuardianLink,
     ]),
+    NotificationModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

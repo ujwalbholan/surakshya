@@ -2,9 +2,12 @@ import {
   Injectable,
   ForbiddenException,
   NotFoundException,
+  BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 import { safeUser } from 'src/utils/safe-user';
 import { User } from 'src/feature/user/entities/user.entity';
 import { Device } from 'src/feature/device/entities/device.entity';
@@ -13,10 +16,14 @@ import { SosEvent } from 'src/feature/device/entities/sos-event.entity';
 import { GuardianLink } from 'src/feature/guardian/entities/guardian-link.entity';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { UpdateUserRolesDto } from './dto/update-user-role.dto';
+import { CreateAdminDto } from './dto/create-admin.dto';
 import { Role } from '../auth/dto/auth.dto';
+import { WelcomeEmailService } from '../notification/email/welcome.email';
 
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
@@ -28,6 +35,7 @@ export class AdminService {
     private readonly sosRepo: Repository<SosEvent>,
     @InjectRepository(GuardianLink)
     private readonly guardianLinkRepo: Repository<GuardianLink>,
+    private readonly welcomeEmailService: WelcomeEmailService,
   ) {}
 
   async getStats() {
@@ -189,6 +197,54 @@ export class AdminService {
     user.roles = dto.roles;
     await this.userRepo.save(user);
     return safeUser(user);
+  }
+
+  async createAdmin(dto: CreateAdminDto) {
+    const phone = dto.phone.trim();
+    const email = dto.email.trim().toLowerCase();
+
+    const duplicate = await this.userRepo.findOne({
+      where: [{ email }, { phone }],
+    });
+    if (duplicate) {
+      throw new BadRequestException('Email or phone already in use');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+
+    const user = this.userRepo.create({
+      full_name: dto.full_name.trim(),
+      email,
+      phone,
+      password_hash: passwordHash,
+      roles: ['ADMIN'],
+      is_active: true,
+      phone_verified: false,
+    });
+
+    const saved = await this.userRepo.save(user);
+
+    try {
+      await this.welcomeEmailService.sendWelcomeEmail(
+        saved.email,
+        saved.full_name,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown email error';
+      this.logger.error(
+        `Welcome email failed for admin ${saved.id}: ${message}`,
+      );
+    }
+
+    return {
+      message: 'Admin created successfully',
+      user_id: saved.id,
+      full_name: saved.full_name,
+      email: saved.email,
+      phone: saved.phone,
+      roles: saved.roles,
+    };
   }
 
   async getDevices(page: number, limit: number) {
