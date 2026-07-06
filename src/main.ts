@@ -3,13 +3,35 @@ import { ValidationPipe } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { json } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
 
   app.useWebSocketAdapter(new IoAdapter(app));
 
+  app.use(json());
+  app.use(
+    (
+      err: SyntaxError,
+      _req: Request,
+      res: Response,
+      next: NextFunction,
+    ) => {
+      if (err instanceof SyntaxError && 'body' in err) {
+        res.status(400).json({
+          statusCode: 400,
+          message:
+            'Invalid JSON format in request body. Please check your syntax (e.g., use double quotes for keys and strings).',
+          error: 'Bad Request',
+        });
+        return;
+      }
+      next(err);
+    },
+  );
   app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
