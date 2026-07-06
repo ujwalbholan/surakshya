@@ -13,6 +13,7 @@ import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import {
+  BootstrapAdminDto,
   ForgotPasswordDto,
   LoginDto,
   RegisterDto,
@@ -53,6 +54,14 @@ export class AuthController {
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
     };
+  }
+
+  @ApiOperation({
+    summary: 'Bootstrap the first SUPER_ADMIN (single-use, key-protected)',
+  })
+  @Post('bootstrap-admin')
+  bootstrapAdmin(@Body() dto: BootstrapAdminDto) {
+    return this.authService.bootstrapAdmin(dto);
   }
 
   @Throttle({ default: { limit: 3, ttl: 60000 } })

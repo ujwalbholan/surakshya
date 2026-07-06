@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
 import { safeUser } from 'src/utils/safe-user';
@@ -164,9 +168,25 @@ export class AdminService {
     return safeUser(user);
   }
 
-  async updateUserRoles(id: string, dto: UpdateUserRolesDto) {
+  async updateUserRoles(
+    id: string,
+    dto: UpdateUserRolesDto,
+    actorRoles: string[],
+  ) {
     const user = await this.userRepo.findOneBy({ id });
     if (!user) throw new NotFoundException('User not found');
+
+    const isSuperAdmin = actorRoles.includes('SUPER_ADMIN');
+    const restrictedRoles = ['ADMIN', 'SUPER_ADMIN'];
+
+    if (!isSuperAdmin) {
+      const hasRestricted = dto.roles.some((r) => restrictedRoles.includes(r));
+      if (hasRestricted) {
+        throw new ForbiddenException(
+          'Only SUPER_ADMIN can assign ADMIN or SUPER_ADMIN roles',
+        );
+      }
+    }
 
     user.roles = dto.roles;
     await this.userRepo.save(user);

@@ -85,14 +85,19 @@ export class AdminController {
     return this.adminService.updateUserStatus(id, dto);
   }
 
-  @ApiOperation({ summary: 'Update user roles' })
+  @ApiOperation({
+    summary:
+      'Update user roles (SUPER_ADMIN can set any; ADMIN cannot set ADMIN/SUPER_ADMIN)',
+  })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @Patch('users/:id/roles')
   async updateUserRoles(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserRolesDto,
+    @Req() req: Request,
   ) {
-    return await this.adminService.updateUserRoles(id, dto);
+    const actor = req.user as { roles: string[] };
+    return await this.adminService.updateUserRoles(id, dto, actor.roles);
   }
 
   @ApiOperation({ summary: 'List all devices (paginated)' })

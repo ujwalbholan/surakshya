@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -9,7 +10,11 @@ import {
   LoginDto,
   VerifyResetOtpDto,
   ResetPasswordDto,
+  BootstrapAdminDto,
 } from './dto/auth.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from 'src/feature/user/entities/user.entity';
 import { UserService } from 'src/feature/user/user.service';
 import { TokenService } from 'src/utils/token/token.service';
 import { randomInt, randomUUID } from 'node:crypto';
@@ -23,6 +28,8 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     private readonly userService: UserService,
     private readonly tokenService: TokenService,
     private readonly redisService: RedisService,
@@ -141,6 +148,51 @@ export class AuthService {
 
     return {
       message: 'Password reset successfully',
+    };
+  }
+
+  async bootstrapAdmin(dto: BootstrapAdminDto) {
+    const expectedKey = process.env.BOOTSTRAP_KEY;
+    if (!expectedKey || dto.key !== expectedKey) {
+      throw new ForbiddenException('Invalid bootstrap key');
+    }
+
+    const existingSuperAdmin = await this.userRepository.findOne({
+      where: { roles: 'SUPER_ADMIN' },
+    });
+    if (existingSuperAdmin) {
+      throw new BadRequestException('A SUPER_ADMIN already exists');
+    }
+
+    const phone = dto.phone.trim().replace(/^\+977/, '');
+    const email = dto.email.trim().toLowerCase();
+
+    const duplicate = await this.userRepository.findOne({
+      where: [{ email }, { phone }],
+    });
+    if (duplicate) {
+      throw new BadRequestException('Email or phone already in use');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+
+    const user = this.userRepository.create({
+      full_name: dto.full_name.trim(),
+      email,
+      phone,
+      password_hash: passwordHash,
+      roles: ['SUPER_ADMIN'],
+      is_active: true,
+      phone_verified: false,
+    });
+
+    const saved = await this.userRepository.save(user);
+
+    return {
+      message: 'Super admin created successfully',
+      user_id: saved.id,
+      email: saved.email,
+      roles: saved.roles,
     };
   }
 

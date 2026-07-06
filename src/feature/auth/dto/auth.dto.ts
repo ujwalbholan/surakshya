@@ -72,6 +72,32 @@ export class VerifyResetOtpDto {
   otp!: string;
 }
 
+export class BootstrapAdminDto {
+  @ApiProperty({ example: 'Super Admin' })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(150)
+  full_name!: string;
+
+  @ApiProperty({ example: 'super@admin.com' })
+  @IsEmail()
+  email!: string;
+
+  @ApiProperty({ example: '9800000000' })
+  @IsString()
+  phone!: string;
+
+  @ApiProperty({ example: 'strongPassword123' })
+  @IsString()
+  @MinLength(6)
+  password!: string;
+
+  @ApiProperty({ example: 'your-bootstrap-secret-key' })
+  @IsString()
+  @IsNotEmpty()
+  key!: string;
+}
+
 export class ResetPasswordDto {
   @ApiProperty({ example: 'user@example.com' })
   @IsEmail()

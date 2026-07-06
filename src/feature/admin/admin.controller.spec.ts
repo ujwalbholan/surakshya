@@ -122,7 +122,9 @@ describe('AdminController', () => {
     };
     service.updateUserRoles.mockResolvedValue(expected as any);
 
-    const result = await controller.updateUserRoles('user-1', dto);
+    const result = await controller.updateUserRoles('user-1', dto, {
+      user: { roles: ['SUPER_ADMIN'] },
+    } as any);
 
     expect(result).toEqual(expected);
   });

@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { RedisService } from 'src/config/redis/redis.service';
 import { OtpEmailService } from 'src/feature/notification/email/otp.email';
 import { WelcomeEmailService } from 'src/feature/notification/email/welcome.email';
+import { User } from 'src/feature/user/entities/user.entity';
 import { UserService } from 'src/feature/user/user.service';
 import { TokenService } from 'src/utils/token/token.service';
 import { AuthService } from './auth.service';
@@ -56,6 +58,14 @@ describe('AuthService', () => {
           provide: WelcomeEmailService,
           useValue: {
             sendWelcomeEmail: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: {
+            findOne: jest.fn(),
+            create: jest.fn(),
+            save: jest.fn(),
           },
         },
       ],

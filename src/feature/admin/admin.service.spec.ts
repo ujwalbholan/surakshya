@@ -186,9 +186,13 @@ describe('AdminService', () => {
       userRepo.findOneBy.mockResolvedValue(user);
       userRepo.save.mockResolvedValue({ ...user, roles: [Role.ADMIN] });
 
-      const result = await service.updateUserRoles('user-1', {
-        roles: [Role.ADMIN],
-      });
+      const result = await service.updateUserRoles(
+        'user-1',
+        {
+          roles: [Role.ADMIN],
+        },
+        ['SUPER_ADMIN'],
+      );
 
       expect(result.roles).toEqual([Role.ADMIN]);
     });
