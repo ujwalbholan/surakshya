@@ -88,11 +88,11 @@ export class AdminController {
   @ApiOperation({ summary: 'Update user roles' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @Patch('users/:id/roles')
-  updateUserRoles(
+  async updateUserRoles(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserRolesDto,
   ) {
-    return this.adminService.updateUserRoles(id, dto);
+    return await this.adminService.updateUserRoles(id, dto);
   }
 
   @ApiOperation({ summary: 'List all devices (paginated)' })
