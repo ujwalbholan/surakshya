@@ -189,6 +189,19 @@ export class AuthService {
 
     const saved = await this.userRepository.save(user);
 
+    try {
+      await this.welcomeEmailService.sendWelcomeEmail(
+        saved.email,
+        saved.full_name,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown email error';
+      this.logger.error(
+        `Welcome email failed for super admin ${saved.id}: ${message}`,
+      );
+    }
+
     return {
       message: 'Super admin created successfully',
       user_id: saved.id,

@@ -44,7 +44,10 @@ export class EmailService {
       this.transporter = nodemailer.createTransport({
         host: process.env.MAIL_HOST,
         port: Number(process.env.MAIL_PORT),
-        secure: process.env.MAIL_SECURE === 'true',
+        secure:
+          process.env.MAIL_SECURE !== undefined
+            ? process.env.MAIL_SECURE === 'true'
+            : Number(process.env.MAIL_PORT) === 465,
         connectionTimeout: 10_000,
         greetingTimeout: 10_000,
         socketTimeout: 15_000,
