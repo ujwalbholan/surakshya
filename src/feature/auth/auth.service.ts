@@ -157,9 +157,10 @@ export class AuthService {
       throw new ForbiddenException('Invalid bootstrap key');
     }
 
-    const existingSuperAdmin = await this.userRepository.findOne({
-      where: { roles: 'SUPER_ADMIN' },
-    });
+    const existingSuperAdmin = await this.userRepository
+      .createQueryBuilder('user')
+      .where(':role = ANY(user.roles)', { role: 'SUPER_ADMIN' })
+      .getOne();
     if (existingSuperAdmin) {
       throw new BadRequestException('A SUPER_ADMIN already exists');
     }
