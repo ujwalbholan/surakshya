@@ -49,7 +49,7 @@ export class SosEvent {
   @Column({ type: 'uuid', nullable: true })
   assigned_station_id?: string | null;
 
-  @Column({ length: 200, nullable: true })
+  @Column({ type: 'varchar', length: 200, nullable: true })
   assigned_station_name?: string | null;
 
   @CreateDateColumn()
