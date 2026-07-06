@@ -13,6 +13,7 @@ import { SosEvent } from 'src/feature/device/entities/sos-event.entity';
 import { GuardianLink } from 'src/feature/guardian/entities/guardian-link.entity';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { UpdateUserRolesDto } from './dto/update-user-role.dto';
+import { Role } from '../auth/dto/auth.dto';
 
 @Injectable()
 export class AdminService {
@@ -177,7 +178,7 @@ export class AdminService {
     if (!user) throw new NotFoundException('User not found');
 
     if (!actorRoles.includes('SUPER_ADMIN')) {
-      const hasSuperAdmin = dto.roles.includes('SUPER_ADMIN');
+      const hasSuperAdmin = dto.roles.includes(Role.SUPER_ADMIN);
       if (hasSuperAdmin) {
         throw new ForbiddenException(
           'Only SUPER_ADMIN can assign the SUPER_ADMIN role',
