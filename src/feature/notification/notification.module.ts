@@ -18,6 +18,12 @@ import { NotificationFailure } from './entities/notification-failure.entity';
     WelcomeEmailService,
     SmsService,
   ],
-  exports: [OtpEmailService, WelcomeEmailService, SmsService, TypeOrmModule],
+  exports: [
+    EmailService,
+    OtpEmailService,
+    WelcomeEmailService,
+    SmsService,
+    TypeOrmModule,
+  ],
 })
 export class NotificationModule {}

@@ -22,7 +22,6 @@ import { AddWardDto } from './dto/add-ward.dto';
 import { JwtAuthGuard } from 'src/utils/guard/jwt-auth.guard';
 import { RolesGuard } from 'src/utils/guard/roles.guard';
 import { Roles } from 'src/decorators/roles.decorators';
-import { Role } from 'src/feature/auth/dto/auth.dto';
 
 @ApiBearerAuth()
 @ApiTags('Guardian (Ward)')
@@ -60,8 +59,8 @@ export class GuardianWardController {
   @Roles('GUARDIAN')
   @Get('requests')
   getMyRequests(@Req() req: Request) {
-    const user = req.user as { userId: string; role: string };
-    return this.guardianService.getMyRequests(user.userId, user.role as Role);
+    const user = req.user as { userId: string; roles: string[] };
+    return this.guardianService.getMyRequests(user.userId, user.roles);
   }
 
   @ApiOperation({ summary: 'Accept a guardian request' })
@@ -78,5 +77,29 @@ export class GuardianWardController {
   rejectRequest(@Req() req: Request, @Param('id') id: string) {
     const user = req.user as { userId: string };
     return this.guardianService.rejectRequest(id, user.userId);
+  }
+
+  @ApiOperation({ summary: 'Get live location of a ward' })
+  @Roles('GUARDIAN')
+  @Get('wards/:wardId/location')
+  getWardLocation(@Req() req: Request, @Param('wardId') wardId: string) {
+    const user = req.user as { userId: string };
+    return this.guardianService.getWardLocation(user.userId, wardId);
+  }
+
+  @ApiOperation({ summary: 'Get location history of a ward (last 100 pings)' })
+  @Roles('GUARDIAN')
+  @Get('wards/:wardId/history')
+  getWardLocationHistory(@Req() req: Request, @Param('wardId') wardId: string) {
+    const user = req.user as { userId: string };
+    return this.guardianService.getWardLocationHistory(user.userId, wardId);
+  }
+
+  @ApiOperation({ summary: 'Get SOS events for a ward (active + recent)' })
+  @Roles('GUARDIAN')
+  @Get('wards/:wardId/sos')
+  getWardSosEvents(@Req() req: Request, @Param('wardId') wardId: string) {
+    const user = req.user as { userId: string };
+    return this.guardianService.getWardSosEvents(user.userId, wardId);
   }
 }

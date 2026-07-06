@@ -26,9 +26,10 @@ describe('AdminService', () => {
     email: 'user@test.com',
     phone: '9800000000',
     password_hash: 'hashed',
-    role: Role.USER,
+    roles: [Role.USER],
     is_active: true,
     phone_verified: false,
+    station_id: null,
     created_at: new Date(),
     updated_at: new Date(),
     ...overrides,
@@ -42,6 +43,7 @@ describe('AdminService', () => {
           provide: getRepositoryToken(User),
           useValue: {
             count: jest.fn(),
+            query: jest.fn(),
             createQueryBuilder: jest.fn(),
             findOne: jest.fn(),
             findOneBy: jest.fn(),
@@ -88,16 +90,10 @@ describe('AdminService', () => {
       pingRepo.count.mockResolvedValue(5000);
       sosRepo.count.mockResolvedValue(3);
 
-      const mockQueryBuilder = {
-        select: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        groupBy: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue([
-          { role: 'USER', count: '50' },
-          { role: 'ADMIN', count: '2' },
-        ]),
-      };
-      userRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      userRepo.query = jest.fn().mockResolvedValue([
+        { role: 'USER', count: '50' },
+        { role: 'ADMIN', count: '2' },
+      ]);
 
       const result = await service.getStats();
 
@@ -155,7 +151,7 @@ describe('AdminService', () => {
         guardian: mockUser({
           id: 'guardian-1',
           full_name: 'Guardian',
-          role: Role.GUARDIAN,
+          roles: [Role.GUARDIAN],
         }),
         created_at: new Date(),
       };
@@ -184,17 +180,17 @@ describe('AdminService', () => {
     });
   });
 
-  describe('updateUserRole', () => {
+  describe('updateUserRoles', () => {
     it('should update user role', async () => {
       const user = mockUser();
       userRepo.findOneBy.mockResolvedValue(user);
-      userRepo.save.mockResolvedValue({ ...user, role: Role.ADMIN });
+      userRepo.save.mockResolvedValue({ ...user, roles: [Role.ADMIN] });
 
-      const result = await service.updateUserRole('user-1', {
-        role: Role.ADMIN,
+      const result = await service.updateUserRoles('user-1', {
+        roles: [Role.ADMIN],
       });
 
-      expect(result.role).toBe(Role.ADMIN);
+      expect(result.roles).toEqual([Role.ADMIN]);
     });
   });
 

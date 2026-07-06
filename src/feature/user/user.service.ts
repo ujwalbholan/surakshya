@@ -40,7 +40,7 @@ export class UserService {
       email: createUserDto.email,
       password_hash: passwordHash,
       phone,
-      role: createUserDto.role,
+      roles: ['USER'],
     });
 
     return this.userRepository.save(user);
@@ -74,7 +74,7 @@ export class UserService {
       id: user.id,
       email: user.email,
       full_name: user.full_name,
-      role: user.role,
+      roles: user.roles,
     });
 
     const userData = {
@@ -84,7 +84,7 @@ export class UserService {
         full_name: user.full_name,
         email: user.email,
         phone: user.phone,
-        role: user.role,
+        roles: user.roles,
       },
       accessToken: token.accessToken,
       refreshToken: token.refreshToken,
@@ -127,7 +127,7 @@ export class UserService {
     if (updateUserDto.email) user.email = updateUserDto.email;
     if (updateUserDto.phone)
       user.phone = this.normalizePhone(updateUserDto.phone);
-    if (updateUserDto.role) user.role = updateUserDto.role;
+
     if (updateUserDto.password) {
       user.password_hash = await bcrypt.hash(updateUserDto.password, 12);
     }

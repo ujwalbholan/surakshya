@@ -22,7 +22,6 @@ import { CreateGuardianDto } from './dto/create-guardian.dto';
 import { JwtAuthGuard } from 'src/utils/guard/jwt-auth.guard';
 import { RolesGuard } from 'src/utils/guard/roles.guard';
 import { Roles } from 'src/decorators/roles.decorators';
-import { Role } from 'src/feature/auth/dto/auth.dto';
 
 @ApiBearerAuth()
 @ApiTags('Guardians')
@@ -60,8 +59,8 @@ export class GuardianController {
   @Roles('USER')
   @Get('requests')
   getMyRequests(@Req() req: Request) {
-    const user = req.user as { userId: string; role: string };
-    return this.guardianService.getMyRequests(user.userId, user.role as Role);
+    const user = req.user as { userId: string; roles: string[] };
+    return this.guardianService.getMyRequests(user.userId, user.roles);
   }
 
   @ApiOperation({ summary: 'Accept an incoming guardian request' })

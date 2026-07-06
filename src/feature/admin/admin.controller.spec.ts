@@ -14,7 +14,7 @@ describe('AdminController', () => {
     getUsers: jest.fn(),
     getUserDetails: jest.fn(),
     updateUserStatus: jest.fn(),
-    updateUserRole: jest.fn(),
+    updateUserRoles: jest.fn(),
     getDevices: jest.fn(),
     getSosEvents: jest.fn(),
     getSosEventDetails: jest.fn(),
@@ -71,7 +71,17 @@ describe('AdminController', () => {
   });
 
   it('should get user details', async () => {
-    const expected = { id: 'user-1', guardianLinks: [], full_name: 'Test', email: 't@t.com', phone: '123', role: 'USER', is_active: true, created_at: new Date(), updated_at: new Date() };
+    const expected = {
+      id: 'user-1',
+      guardianLinks: [],
+      full_name: 'Test',
+      email: 't@t.com',
+      phone: '123',
+      role: 'USER',
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
     service.getUserDetails.mockResolvedValue(expected as any);
 
     const result = await controller.getUserDetails('user-1');
@@ -81,7 +91,16 @@ describe('AdminController', () => {
 
   it('should update user status', async () => {
     const dto = { is_active: false };
-    const expected = { id: 'user-1', is_active: false, full_name: 'Test', phone: '123', email: 't@t.com', role: 'USER', created_at: new Date(), updated_at: new Date() };
+    const expected = {
+      id: 'user-1',
+      is_active: false,
+      full_name: 'Test',
+      phone: '123',
+      email: 't@t.com',
+      role: 'USER',
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
     service.updateUserStatus.mockResolvedValue(expected as any);
 
     const result = await controller.updateUserStatus('user-1', dto);
@@ -90,11 +109,20 @@ describe('AdminController', () => {
   });
 
   it('should update user role', async () => {
-    const dto = { role: 'ADMIN' as any };
-    const expected = { id: 'user-1', role: 'ADMIN', full_name: 'Test', phone: '123', email: 't@t.com', is_active: true, created_at: new Date(), updated_at: new Date() };
-    service.updateUserRole.mockResolvedValue(expected as any);
+    const dto = { roles: 'ADMIN' as any };
+    const expected = {
+      id: 'user-1',
+      role: 'ADMIN',
+      full_name: 'Test',
+      phone: '123',
+      email: 't@t.com',
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+    service.updateUserRoles.mockResolvedValue(expected as any);
 
-    const result = await controller.updateUserRole('user-1', dto);
+    const result = await controller.updateUserRoles('user-1', dto);
 
     expect(result).toEqual(expected);
   });
@@ -110,7 +138,7 @@ describe('AdminController', () => {
 
   it('should get SOS events', async () => {
     const expected = { data: [], total: 0, page: 1, limit: 20, totalPages: 0 };
-    service.getSosEvents.mockResolvedValue(expected as any);
+    service.getSosEvents.mockResolvedValue(expected);
 
     const result = await controller.getSosEvents(undefined, 1, 20);
 
@@ -118,7 +146,13 @@ describe('AdminController', () => {
   });
 
   it('should get SOS event details', async () => {
-    const expected = { id: 'sos-1', locationPings: [], device: { id: 'dev-1', imei: '123', label: 'd', isOnline: true }, status: 'active', startedAt: new Date() };
+    const expected = {
+      id: 'sos-1',
+      locationPings: [],
+      device: { id: 'dev-1', imei: '123', label: 'd', isOnline: true },
+      status: 'active',
+      startedAt: new Date(),
+    };
     service.getSosEventDetails.mockResolvedValue(expected as any);
 
     const result = await controller.getSosEventDetails('sos-1');
@@ -127,7 +161,12 @@ describe('AdminController', () => {
   });
 
   it('should resolve SOS event', async () => {
-    const expected = { id: 'sos-1', status: 'resolved', device: { id: 'dev-1', imei: '123', label: 'd', isOnline: true }, startedAt: new Date() };
+    const expected = {
+      id: 'sos-1',
+      status: 'resolved',
+      device: { id: 'dev-1', imei: '123', label: 'd', isOnline: true },
+      startedAt: new Date(),
+    };
     service.resolveSosEvent.mockResolvedValue(expected as any);
 
     const result = await controller.resolveSosEvent('sos-1');

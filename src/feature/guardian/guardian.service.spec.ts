@@ -7,6 +7,9 @@ import { User } from 'src/feature/user/entities/user.entity';
 import { GuardianLink } from './entities/guardian-link.entity';
 import { GuardianRequest } from './entities/guardian-request.entity';
 import { GuardianService } from './guardian.service';
+import { Device } from '../device/entities/device.entity';
+import { LocationPing } from '../device/entities/location-ping.entity';
+import { SosEvent } from '../device/entities/sos-event.entity';
 import { Role } from 'src/feature/auth/dto/auth.dto';
 import { SmsService } from '../notification/sms/sms.service';
 import { RedisService } from 'src/config/redis/redis.service';
@@ -31,9 +34,10 @@ describe('GuardianService', () => {
     email: 'user@test.com',
     phone: '9800000000',
     password_hash: 'hashed',
-    role: Role.USER,
+    roles: [Role.USER],
     is_active: true,
     phone_verified: false,
+    station_id: null,
     created_at: new Date(),
     updated_at: new Date(),
     ...overrides,
@@ -49,7 +53,7 @@ describe('GuardianService', () => {
     guardian: mockUser({
       id: 'guardian-id',
       full_name: 'Guardian',
-      role: Role.GUARDIAN,
+      roles: [Role.GUARDIAN],
     }),
     created_at: new Date(),
     ...overrides,
@@ -106,6 +110,18 @@ describe('GuardianService', () => {
           },
         },
         {
+          provide: getRepositoryToken(Device),
+          useValue: { findOne: jest.fn(), find: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(LocationPing),
+          useValue: { findOne: jest.fn(), find: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(SosEvent),
+          useValue: { findOne: jest.fn(), find: jest.fn() },
+        },
+        {
           provide: SmsService,
           useValue: { send: jest.fn() },
         },
@@ -146,7 +162,7 @@ describe('GuardianService', () => {
         BadRequestException,
       );
 
-      userRepo.findOneBy.mockResolvedValue(mockUser({ role: Role.ADMIN }));
+      userRepo.findOneBy.mockResolvedValue(mockUser({ roles: [Role.ADMIN] }));
       await expect(service.addGuardian(userId, dto)).rejects.toThrow(
         BadRequestException,
       );
@@ -166,7 +182,7 @@ describe('GuardianService', () => {
       const guardianUser = mockUser({
         id: 'guardian-id',
         full_name: dto.full_name,
-        role: Role.GUARDIAN,
+        roles: [Role.GUARDIAN],
       });
       userRepo.create.mockReturnValue(guardianUser);
       userRepo.save.mockResolvedValue(guardianUser);

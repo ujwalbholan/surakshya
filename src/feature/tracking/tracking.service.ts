@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Device } from '../device/entities/device.entity';
 import { LocationPing } from '../device/entities/location-ping.entity';
 import { SosEvent } from '../device/entities/sos-event.entity';
+import { PoliceStation } from '../police-station/police-station.entity';
 import {
   DeviceTelemetry,
   extractDeviceIdFromTopic,
@@ -26,6 +27,8 @@ export class TrackingService implements TrackingIngestService {
     private readonly pingRepo: Repository<LocationPing>,
     @InjectRepository(SosEvent)
     private readonly sosRepo: Repository<SosEvent>,
+    @InjectRepository(PoliceStation)
+    private readonly stationRepo: Repository<PoliceStation>,
     private readonly trackingGateway: TrackingGateway,
   ) {}
 
@@ -82,9 +85,7 @@ export class TrackingService implements TrackingIngestService {
 
   async ingestSosEvent(topic: string, json: Record<string, unknown>) {
     const deviceId = String(
-      (json.deviceId as string) ??
-        extractDeviceIdFromTopic(topic) ??
-        '',
+      (json.deviceId as string) ?? extractDeviceIdFromTopic(topic) ?? '',
     );
     if (!deviceId) {
       this.logger.warn(`SOS event missing deviceId on topic ${topic}`);
@@ -109,15 +110,30 @@ export class TrackingService implements TrackingIngestService {
         );
       }
 
+      const lat = parseOptionalNumber(json.latitude) ?? null;
+      const lng = parseOptionalNumber(json.longitude) ?? null;
+
+      let assignedStationId: string | null = null;
+      let assignedStationName: string | null = null;
+      if (lat != null && lng != null) {
+        const nearest = await this.findNearestStation(lat, lng);
+        if (nearest) {
+          assignedStationId = nearest.id;
+          assignedStationName = nearest.name;
+        }
+      }
+
       const sos = this.sosRepo.create({
         device,
         status: 'active',
         eventType: 'sos_started',
-        latitude: parseOptionalNumber(json.latitude) ?? null,
-        longitude: parseOptionalNumber(json.longitude) ?? null,
+        latitude: lat,
+        longitude: lng,
         altitudeM: parseOptionalNumber(json.altitudeM) ?? null,
         speedKmph: parseOptionalNumber(json.speedKmph) ?? null,
         satellites: parseOptionalNumber(json.satellites) ?? null,
+        assigned_station_id: assignedStationId,
+        assigned_station_name: assignedStationName,
       });
       const saved = await this.sosRepo.save(sos);
 
@@ -218,9 +234,11 @@ export class TrackingService implements TrackingIngestService {
     const device = await this.deviceRepo.findOne({ where: { imei: deviceId } });
     if (!device) return null;
 
-    return this.sosRepo.findOne({
-      where: { device: { id: device.id }, status: 'active' },
-    }) ?? null;
+    return (
+      this.sosRepo.findOne({
+        where: { device: { id: device.id }, status: 'active' },
+      }) ?? null
+    );
   }
 
   private async createLocationPing(
@@ -271,6 +289,50 @@ export class TrackingService implements TrackingIngestService {
     }
 
     return device;
+  }
+
+  private async findNearestStation(
+    lat: number,
+    lng: number,
+  ): Promise<PoliceStation | null> {
+    const stations = await this.stationRepo.find({
+      where: { is_active: true },
+    });
+    if (stations.length === 0) return null;
+
+    let nearest = stations[0];
+    let minDist = Infinity;
+
+    for (const s of stations) {
+      if (s.latitude == null || s.longitude == null) continue;
+      const d = this.haversine(lat, lng, s.latitude, s.longitude);
+      if (d < minDist) {
+        minDist = d;
+        nearest = s;
+      }
+    }
+    return nearest;
+  }
+
+  private haversine(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
+    const R = 6371;
+    const dLat = this.toRad(lat2 - lat1);
+    const dLon = this.toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(this.toRad(lat1)) *
+        Math.cos(this.toRad(lat2)) *
+        Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  private toRad(deg: number): number {
+    return (deg * Math.PI) / 180;
   }
 }
 

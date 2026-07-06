@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { Device } from '../device/entities/device.entity';
 import { LocationPing } from '../device/entities/location-ping.entity';
 import { SosEvent } from '../device/entities/sos-event.entity';
+import { PoliceStation } from '../police-station/police-station.entity';
 import { TrackingService } from './tracking.service';
 import { TrackingGateway } from './tracking.gateway';
 
@@ -45,7 +46,12 @@ describe('TrackingService', () => {
         TrackingService,
         {
           provide: getRepositoryToken(Device),
-          useValue: { findOne: jest.fn(), create: jest.fn(), save: jest.fn(), update: jest.fn() },
+          useValue: {
+            findOne: jest.fn(),
+            create: jest.fn(),
+            save: jest.fn(),
+            update: jest.fn(),
+          },
         },
         {
           provide: getRepositoryToken(LocationPing),
@@ -54,6 +60,10 @@ describe('TrackingService', () => {
         {
           provide: getRepositoryToken(SosEvent),
           useValue: { findOne: jest.fn(), create: jest.fn(), save: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(PoliceStation),
+          useValue: { find: jest.fn() },
         },
         {
           provide: TrackingGateway,

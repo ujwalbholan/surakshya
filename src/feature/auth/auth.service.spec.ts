@@ -93,7 +93,7 @@ describe('AuthService', () => {
       full_name: dto.full_name,
       email: dto.email,
       phone: dto.phone,
-      role: dto.role,
+      roles: [dto.role],
     } as never);
     welcomeEmailService.sendWelcomeEmail.mockResolvedValue(undefined);
 
@@ -139,7 +139,7 @@ describe('AuthService', () => {
       full_name: dto.full_name,
       email: dto.email,
       phone: dto.phone,
-      role: dto.role,
+      roles: [dto.role],
     } as never);
     welcomeEmailService.sendWelcomeEmail.mockRejectedValue(
       new Error('SMTP unavailable'),

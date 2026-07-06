@@ -52,7 +52,7 @@ export class AuthService {
       full_name: user.full_name,
       email: user.email,
       phone: user.phone,
-      role: user.role,
+      roles: user.roles,
     };
   }
 
