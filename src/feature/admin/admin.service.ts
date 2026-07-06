@@ -176,14 +176,11 @@ export class AdminService {
     const user = await this.userRepo.findOneBy({ id });
     if (!user) throw new NotFoundException('User not found');
 
-    const isSuperAdmin = actorRoles.includes('SUPER_ADMIN');
-    const restrictedRoles = ['ADMIN', 'SUPER_ADMIN'];
-
-    if (!isSuperAdmin) {
-      const hasRestricted = dto.roles.some((r) => restrictedRoles.includes(r));
-      if (hasRestricted) {
+    if (!actorRoles.includes('SUPER_ADMIN')) {
+      const hasSuperAdmin = dto.roles.includes('SUPER_ADMIN');
+      if (hasSuperAdmin) {
         throw new ForbiddenException(
-          'Only SUPER_ADMIN can assign ADMIN or SUPER_ADMIN roles',
+          'Only SUPER_ADMIN can assign the SUPER_ADMIN role',
         );
       }
     }
